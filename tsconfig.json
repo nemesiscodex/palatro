@@ -1,0 +1,3 @@
+{
+  "extends": "@palatro/config/tsconfig.base.json"
+}
