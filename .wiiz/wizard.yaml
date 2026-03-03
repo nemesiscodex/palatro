@@ -1,0 +1,75 @@
+version: 1
+name: Palatro Onboarding
+steps:
+  - id: intro
+    type: note
+    message: This wizard sets up the local env files for the Palatro monorepo and can optionally run the standard Bun and Convex setup commands.
+
+  - id: check-bun
+    type: command.check
+    command: bun
+    installHint: Bun 1.3+ is required for this repository. Install Bun, then re-run this wizard.
+
+  - id: install-dependencies
+    type: command.run
+    command: bun install
+    consentMessage: Install workspace dependencies with bun now?
+
+  - id: configure-convex
+    type: command.run
+    command: bun run dev:setup
+    consentMessage: Run the Convex setup flow now? This can create or connect a Convex project and populate local env values.
+
+  - id: convex-guidance
+    type: note
+    message: If you skip Convex setup, collect the Convex deployment URL and site URL before continuing. You can also keep any values already present in the existing env files.
+
+  - id: site-url
+    type: input
+    message: Enter the web app URL used for auth callbacks. Press Enter to keep http://localhost:3001 unless your local setup uses another origin.
+    var: SITE_URL
+    envFile: packages/backend/.env.local
+    sensitive: false
+    required: true
+    default: http://localhost:3001
+    validateRegex: "^https?://.+"
+
+  - id: convex-url
+    type: input
+    message: Enter the Convex deployment URL for the web app (for example https://<deployment>.convex.cloud).
+    var: VITE_CONVEX_URL
+    envFile: apps/web/.env
+    sensitive: false
+    required: true
+    validateRegex: "^https?://.+"
+
+  - id: convex-site-url
+    type: input
+    message: Enter the Convex site URL that ends in .site for auth integrations.
+    var: VITE_CONVEX_SITE_URL
+    envFile: apps/web/.env
+    sensitive: false
+    required: true
+    validateRegex: "^https?://.+"
+
+  - id: write-backend-env
+    type: env.write
+    path: packages/backend/.env.local
+    overwrite: true
+    entries:
+      - key: SITE_URL
+        value: "{{SITE_URL}}"
+
+  - id: write-web-env
+    type: env.write
+    path: apps/web/.env
+    overwrite: true
+    entries:
+      - key: VITE_CONVEX_URL
+        value: "{{VITE_CONVEX_URL}}"
+      - key: VITE_CONVEX_SITE_URL
+        value: "{{VITE_CONVEX_SITE_URL}}"
+
+  - id: better-auth-reminder
+    type: note
+    message: After this wizard finishes, make sure your Convex deployment has BETTER_AUTH_SECRET configured. A common local setup is `bunx convex env set BETTER_AUTH_SECRET \"$(openssl rand -hex 32)\"`, then start the app with `bun run dev`.
