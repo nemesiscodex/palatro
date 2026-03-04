@@ -14,6 +14,7 @@ import RoundControls from "@/components/round-controls";
 import RoundResults from "@/components/round-results";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GENERIC_UNEXPECTED_ERROR_MESSAGE, getUserFacingErrorMessage } from "@/lib/errors";
 import { clearGuestToken, readGuestToken, writeGuestToken } from "@/lib/room-session";
 import { cn } from "@/lib/utils";
 
@@ -66,7 +67,7 @@ function RoomRouteComponent() {
     hostJoinRequested.current = true;
     void joinAsHost({ slug }).catch((error: unknown) => {
       hostJoinRequested.current = false;
-      toast.error(error instanceof Error ? error.message : "Could not join as host");
+      toast.error(getUserFacingErrorMessage(error, GENERIC_UNEXPECTED_ERROR_MESSAGE));
     });
   }, [joinAsHost, roomState, slug]);
 
@@ -127,7 +128,7 @@ function RoomRouteComponent() {
     try {
       await task();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : errorMessage);
+      toast.error(getUserFacingErrorMessage(error, errorMessage));
     } finally {
       setIsBusy(false);
     }

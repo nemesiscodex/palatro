@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as errors from "../errors.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
 import type * as participants from "../participants.js";
@@ -27,6 +28,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  errors: typeof errors;
   healthCheck: typeof healthCheck;
   http: typeof http;
   participants: typeof participants;

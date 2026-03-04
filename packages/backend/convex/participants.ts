@@ -2,6 +2,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { mutation } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 
+import { withUnexpectedErrorLogging } from "./errors";
 import { verifyPassword } from "./passwordUtils";
 import {
   assertRoomOwner,
@@ -79,7 +80,7 @@ export const joinAsGuest = mutation({
     guestToken: v.optional(v.string()),
     password: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("participants.joinAsGuest", async (ctx, args) => {
     const room = await getRoomBySlugOrThrow(ctx, args.slug);
     const displayName = normalizeDisplayName(args.nickname);
 
@@ -129,14 +130,14 @@ export const joinAsGuest = mutation({
       participantId,
       guestToken: persistedToken,
     };
-  },
+  }),
 });
 
 export const joinAsHost = mutation({
   args: {
     slug: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("participants.joinAsHost", async (ctx, args) => {
     const room = await getRoomBySlugOrThrow(ctx, args.slug);
     const { authUser, userId } = await requireAuthSession(ctx);
 
@@ -175,7 +176,7 @@ export const joinAsHost = mutation({
     return {
       participantId,
     };
-  },
+  }),
 });
 
 export const leave = mutation({
@@ -184,7 +185,7 @@ export const leave = mutation({
     participantId: v.id("participants"),
     guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("participants.leave", async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
 
     if (!participant || participant.roomId !== args.roomId) {
@@ -208,7 +209,7 @@ export const leave = mutation({
     await deactivateParticipant(ctx, participant);
 
     return null;
-  },
+  }),
 });
 
 export const kick = mutation({
@@ -216,7 +217,7 @@ export const kick = mutation({
     roomId: v.id("rooms"),
     participantId: v.id("participants"),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("participants.kick", async (ctx, args) => {
     await assertRoomOwner(ctx, args.roomId);
 
     const participant = (await ctx.db.get(args.participantId)) as Doc<"participants"> | null;
@@ -232,7 +233,7 @@ export const kick = mutation({
     await deactivateParticipant(ctx, participant);
 
     return null;
-  },
+  }),
 });
 
 export const heartbeat = mutation({
@@ -241,7 +242,7 @@ export const heartbeat = mutation({
     participantId: v.id("participants"),
     guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("participants.heartbeat", async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
 
     if (!participant || participant.roomId !== args.roomId) {
@@ -266,5 +267,5 @@ export const heartbeat = mutation({
     });
 
     return null;
-  },
+  }),
 });

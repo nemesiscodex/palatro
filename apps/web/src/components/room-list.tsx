@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 import type { ScaleType } from "@palatro/backend/convex/pointingPoker";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface RoomSummary {
@@ -19,7 +20,13 @@ const STATUS_MAP = {
   revealed: { label: "Revealed", color: "bg-accent/15 text-accent", dot: "bg-accent" },
 } as const;
 
-export default function RoomList({ rooms }: { rooms: RoomSummary[] }) {
+export default function RoomList({
+  rooms,
+  onDeleteRoom,
+}: {
+  rooms: RoomSummary[];
+  onDeleteRoom: (room: RoomSummary) => void;
+}) {
   if (rooms.length === 0) {
     return (
       <div className="felt-panel flex flex-col items-center gap-4 rounded-[2rem] px-6 py-10 text-center">
@@ -87,14 +94,27 @@ export default function RoomList({ rooms }: { rooms: RoomSummary[] }) {
               <code className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1 text-[0.62rem] text-muted-foreground/60 font-mono">
                 /rooms/{room.slug}
               </code>
-              <Link
-                to="/rooms/$slug"
-                params={{ slug: room.slug }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground transition-all duration-200 hover:-translate-y-px hover:border-primary/30 hover:bg-primary/[0.06] hover:text-primary"
-              >
-                <span className="text-primary/50">{"\u2192"}</span>
-                Open
-              </Link>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="px-3"
+                  onClick={() => {
+                    onDeleteRoom(room);
+                  }}
+                >
+                  Delete
+                </Button>
+                <Link
+                  to="/rooms/$slug"
+                  params={{ slug: room.slug }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground transition-all duration-200 hover:-translate-y-px hover:border-primary/30 hover:bg-primary/[0.06] hover:text-primary"
+                >
+                  <span className="text-primary/50">{"\u2192"}</span>
+                  Open
+                </Link>
+              </div>
             </div>
           </div>
         );

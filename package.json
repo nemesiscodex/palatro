@@ -29,6 +29,7 @@
     "destroy": "turbo -F @palatro/infra destroy"
   },
   "dependencies": {
+    "@convex-dev/rate-limiter": "^0.3.2",
     "@palatro/env": "workspace:*",
     "dotenv": "catalog:",
     "zod": "catalog:"

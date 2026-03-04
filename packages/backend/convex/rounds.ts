@@ -2,6 +2,7 @@ import { mutation, query } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { ConvexError, v } from "convex/values";
 
+import { withUnexpectedErrorLogging } from "./errors";
 import {
   assertRoomOwner,
   assertVoteValueAllowed,
@@ -89,18 +90,18 @@ export const start = mutation({
   args: {
     roomId: v.id("rooms"),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("rounds.start", async (ctx, args) => {
     return await startRoundForRoom(ctx, args.roomId, false);
-  },
+  }),
 });
 
 export const restart = mutation({
   args: {
     roomId: v.id("rooms"),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("rounds.restart", async (ctx, args) => {
     return await startRoundForRoom(ctx, args.roomId, true);
-  },
+  }),
 });
 
 export const castVote = mutation({
@@ -111,7 +112,7 @@ export const castVote = mutation({
     value: v.string(),
     guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("rounds.castVote", async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) {
       throw new ConvexError("Room not found");
@@ -173,14 +174,14 @@ export const castVote = mutation({
     }
 
     return null;
-  },
+  }),
 });
 
 export const forceFinish = mutation({
   args: {
     roomId: v.id("rooms"),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("rounds.forceFinish", async (ctx, args) => {
     const { room } = await assertRoomOwner(ctx, args.roomId);
 
     if (!room.activeRoundId || room.status !== "voting") {
@@ -193,7 +194,7 @@ export const forceFinish = mutation({
     }
 
     return await finishRound(ctx, room, round, "forced");
-  },
+  }),
 });
 
 export const getCurrentState = query({
@@ -201,7 +202,7 @@ export const getCurrentState = query({
     slug: v.string(),
     guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("rounds.getCurrentState", async (ctx, args) => {
     return await buildRoomState(ctx, args.slug, args.guestToken);
-  },
+  }),
 });

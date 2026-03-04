@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 
+import { withUnexpectedErrorLogging } from "./errors";
 import { hashPassword } from "./passwordUtils";
 import {
   assertRoomOwner,
@@ -17,7 +18,7 @@ export const create = mutation({
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two")),
     password: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("rooms.create", async (ctx, args) => {
     const { userId } = await requireAuthSession(ctx);
     const name = normalizeDisplayName(args.name);
 
@@ -29,7 +30,9 @@ export const create = mutation({
     let slug = slugBase;
     let suffix = 0;
 
-    while (await ctx.db.query("rooms").withIndex("by_slug", (q) => q.eq("slug", slug)).unique()) {
+    while (
+      await ctx.db.query("rooms").withIndex("by_slug", (q: any) => q.eq("slug", slug)).unique()
+    ) {
       suffix += 1;
       slug = `${slugBase}-${suffix}`;
     }
@@ -54,12 +57,12 @@ export const create = mutation({
       roomId,
       slug,
     };
-  },
+  }),
 });
 
 export const listMine = query({
   args: {},
-  handler: async (ctx) => {
+  handler: withUnexpectedErrorLogging("rooms.listMine", async (ctx) => {
     const { userId } = await getOptionalAuthSession(ctx);
     if (!userId) {
       return [];
@@ -67,11 +70,11 @@ export const listMine = query({
 
     const rooms = await ctx.db
       .query("rooms")
-      .withIndex("by_ownerUserId", (q) => q.eq("ownerUserId", userId))
+      .withIndex("by_ownerUserId", (q: any) => q.eq("ownerUserId", userId))
       .order("desc")
       .collect();
 
-    return rooms.map((room) => ({
+    return rooms.map((room: any) => ({
       id: room._id,
       name: room.name,
       slug: room.slug,
@@ -81,7 +84,7 @@ export const listMine = query({
       createdAt: room.createdAt,
       updatedAt: room.updatedAt,
     }));
-  },
+  }),
 });
 
 export const getBySlug = query({
@@ -89,9 +92,9 @@ export const getBySlug = query({
     slug: v.string(),
     guestToken: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("rooms.getBySlug", async (ctx, args) => {
     return await buildRoomState(ctx, args.slug, args.guestToken);
-  },
+  }),
 });
 
 export const updateConfig = mutation({
@@ -99,7 +102,7 @@ export const updateConfig = mutation({
     roomId: v.id("rooms"),
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two")),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("rooms.updateConfig", async (ctx, args) => {
     const { room } = await assertRoomOwner(ctx, args.roomId);
 
     if (room.status === "voting") {
@@ -112,7 +115,7 @@ export const updateConfig = mutation({
     });
 
     return await getRoomBySlugOrThrow(ctx, room.slug);
-  },
+  }),
 });
 
 export const updatePassword = mutation({
@@ -120,7 +123,7 @@ export const updatePassword = mutation({
     roomId: v.id("rooms"),
     password: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withUnexpectedErrorLogging("rooms.updatePassword", async (ctx, args) => {
     const { room } = await assertRoomOwner(ctx, args.roomId);
 
     const plaintext = args.password?.trim() || undefined;
@@ -132,5 +135,39 @@ export const updatePassword = mutation({
     });
 
     return { hasPassword: !!passwordHash };
+  }),
+});
+
+export const remove = mutation({
+  args: {
+    roomId: v.id("rooms"),
   },
+  handler: withUnexpectedErrorLogging("rooms.remove", async (ctx, args) => {
+    const { room } = await assertRoomOwner(ctx, args.roomId);
+
+    const rounds = await ctx.db
+      .query("rounds")
+      .withIndex("by_roomId", (q: any) => q.eq("roomId", room._id))
+      .collect();
+
+    const participants = await ctx.db
+      .query("participants")
+      .withIndex("by_roomId", (q: any) => q.eq("roomId", room._id))
+      .collect();
+
+    for (const round of rounds) {
+      const votes = await ctx.db
+        .query("votes")
+        .withIndex("by_roundId", (q: any) => q.eq("roundId", round._id))
+        .collect();
+
+      await Promise.all(votes.map((vote: any) => ctx.db.delete(vote._id)));
+      await ctx.db.delete(round._id);
+    }
+
+    await Promise.all(participants.map((participant: any) => ctx.db.delete(participant._id)));
+    await ctx.db.delete(room._id);
+
+    return null;
+  }),
 });
