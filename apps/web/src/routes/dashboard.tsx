@@ -13,6 +13,10 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function RouteComponent() {
+  return <DashboardPage />;
+}
+
+export function DashboardPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const apiAny = api as any;
   const rooms = useQuery(apiAny.rooms.listMine, !isLoading && isAuthenticated ? {} : "skip");

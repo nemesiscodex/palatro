@@ -120,8 +120,33 @@ Main routes:
 - `bun run dev:setup` configures local Convex development
 - `bun run build` builds the workspace
 - `bun run check-types` runs type checks across the workspace
+- `bun run test` runs the workspace test suite through Turbo and Vitest
+- `bun run test:coverage` runs the workspace test suite with coverage reporting
 - `bun run deploy` deploys infrastructure
 - `bun run destroy` destroys deployed infrastructure
+
+## Testing
+
+This repo uses two different test entrypoints:
+
+- `bun test` runs Bun's native test runner against the backend-only subset under `packages/backend/convex`
+- `bun run test` runs the full monorepo suite through Turbo and Vitest
+- `bun run test:coverage` runs the full monorepo suite with coverage reporting
+
+Use the full-suite commands for normal development and CI:
+
+```bash
+bun run test
+bun run test:coverage
+```
+
+Use `bun test` only when you specifically want the Bun-compatible backend subset:
+
+```bash
+bun test
+```
+
+The web tests depend on Vitest configuration (`jsdom`, setup files, and Turbo orchestration), so they are only covered by `bun run test` and `bun run test:coverage`.
 
 ## Notes
 

@@ -5,7 +5,10 @@
   "scripts": {
     "build": "vite build",
     "serve": "vite preview",
-    "dev:bare": "vite dev"
+    "dev:bare": "vite dev",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
@@ -43,6 +46,7 @@
     "@palatro/config": "workspace:*",
     "@tanstack/react-router-devtools": "^1.141.1",
     "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.2.0",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",

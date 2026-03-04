@@ -24,6 +24,10 @@ export const Route = createFileRoute("/rooms/$slug")({
 
 function RoomRouteComponent() {
   const { slug } = Route.useParams();
+  return <RoomPage slug={slug} />;
+}
+
+export function RoomPage({ slug }: { slug: string }) {
   const apiAny = api as any;
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
