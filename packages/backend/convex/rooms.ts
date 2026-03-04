@@ -7,10 +7,11 @@ import {
   assertRoomOwner,
   buildRoomState,
   getOptionalAuthSession,
+  getRoomBySlug,
   getRoomBySlugOrThrow,
   requireAuthSession,
 } from "./pokerHelpers";
-import { createSlugCandidate, normalizeDisplayName } from "./pointingPoker";
+import { createRoomSlug, normalizeDisplayName, normalizeRoomSlug } from "./pointingPoker";
 import {
   assertRoomCreateRateLimit,
   assertRoomDeleteRateLimit,
@@ -22,6 +23,7 @@ export const create = mutation({
     name: v.string(),
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two")),
     password: v.optional(v.string()),
+    slug: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("rooms.create", async (ctx, args) => {
     const { userId } = await requireAuthSession(ctx);
@@ -32,15 +34,26 @@ export const create = mutation({
       throw new ConvexError("Room name is required");
     }
 
-    const slugBase = createSlugCandidate(name);
-    let slug = slugBase;
-    let suffix = 0;
+    const requestedSlug = args.slug?.trim();
+    let slug: string;
 
-    while (
-      await ctx.db.query("rooms").withIndex("by_slug", (q: any) => q.eq("slug", slug)).unique()
-    ) {
-      suffix += 1;
-      slug = `${slugBase}-${suffix}`;
+    if (requestedSlug) {
+      slug = normalizeRoomSlug(requestedSlug);
+
+      if (!slug) {
+        throw new ConvexError("Custom slug must include at least one letter or number");
+      }
+
+      if (await getRoomBySlug(ctx, slug)) {
+        throw new ConvexError(
+          "Room slug already exists. Choose another custom slug or leave it empty to use a random UUID.",
+        );
+      }
+    } else {
+      slug = createRoomSlug();
+      while (await getRoomBySlug(ctx, slug)) {
+        slug = createRoomSlug();
+      }
     }
 
     const password = args.password?.trim() || undefined;

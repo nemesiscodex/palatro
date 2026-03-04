@@ -31,6 +31,18 @@ export function createSlugCandidate(name: string) {
   return base || "room";
 }
 
+export function normalizeRoomSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function createRoomSlug() {
+  return crypto.randomUUID();
+}
+
 export function createGuestToken() {
   return crypto.randomUUID();
 }

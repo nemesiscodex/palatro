@@ -93,10 +93,33 @@ describe("DashboardPage", () => {
         name: "New Room",
         scaleType: "fibonacci",
         password: undefined,
+        slug: undefined,
       });
     });
     expect(toastSuccess).toHaveBeenCalledWith("Room created");
     expect(window.location.assign).toHaveBeenCalledWith("/rooms/new-room");
+  });
+
+  it("shows a clear error when the custom slug is already taken", async () => {
+    convexState.createRoom.mockRejectedValue(
+      new Error(
+        'Uncaught ConvexError: Room slug already exists. Choose another custom slug or leave it empty to use a random UUID.\n',
+      ),
+    );
+
+    render(<DashboardPage />);
+
+    fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "New Room" } });
+    fireEvent.change(screen.getByLabelText("Custom URL slug (optional)"), {
+      target: { value: "existing-slug" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Open table" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        "Room slug already exists. Choose another custom slug or leave it empty to use a random UUID.",
+      );
+    });
   });
 
   it("deletes a room and reports failures", async () => {

@@ -72,9 +72,9 @@ export function DashboardPage() {
                   </div>
                 ) : (
                   <CreateRoomForm
-                    onCreateRoom={async ({ name, scaleType, password }) => {
+                    onCreateRoom={async ({ name, scaleType, password, slug }) => {
                       try {
-                        const result = await createRoom({ name, scaleType, password });
+                        const result = await createRoom({ name, scaleType, password, slug });
                         toast.success("Room created");
                         window.location.assign(`/rooms/${result.slug}`);
                       } catch (error) {

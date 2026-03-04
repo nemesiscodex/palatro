@@ -13,13 +13,19 @@ const SCALE_OPTIONS: Array<{ label: string; value: ScaleType; icon: string }> = 
 ];
 
 interface CreateRoomFormProps {
-  onCreateRoom: (values: { name: string; scaleType: ScaleType; password?: string }) => Promise<void>;
+  onCreateRoom: (values: {
+    name: string;
+    scaleType: ScaleType;
+    password?: string;
+    slug?: string;
+  }) => Promise<void>;
 }
 
 export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
   const [name, setName] = useState("");
   const [scaleType, setScaleType] = useState<ScaleType>("fibonacci");
   const [password, setPassword] = useState("");
+  const [slug, setSlug] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -38,10 +44,12 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
             name,
             scaleType,
             password: password.trim() || undefined,
+            slug: slug.trim() || undefined,
           });
           setName("");
           setScaleType("fibonacci");
           setPassword("");
+          setSlug("");
           setShowPassword(false);
         } finally {
           setIsSubmitting(false);
@@ -55,6 +63,17 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Sprint planning"
+          className="bg-black/10"
+        />
+      </div>
+
+      <div className="grid gap-2">
+        <Label htmlFor="room-slug">Custom URL slug (optional)</Label>
+        <Input
+          id="room-slug"
+          value={slug}
+          onChange={(event) => setSlug(event.target.value)}
+          placeholder="Leave blank for random UUID"
           className="bg-black/10"
         />
       </div>

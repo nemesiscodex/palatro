@@ -22,6 +22,7 @@ describe("CreateRoomForm", () => {
         name: "Sprint Alpha",
         scaleType: "fibonacci",
         password: undefined,
+        slug: undefined,
       });
     });
   });
@@ -41,6 +42,27 @@ describe("CreateRoomForm", () => {
         name: "Sprint Beta",
         scaleType: "powers_of_two",
         password: "deck",
+        slug: undefined,
+      });
+    });
+  });
+
+  it("submits a trimmed custom slug", async () => {
+    onCreateRoom.mockResolvedValue(undefined);
+    render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
+
+    fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "Sprint Epsilon" } });
+    fireEvent.change(screen.getByLabelText("Custom URL slug (optional)"), {
+      target: { value: "  Feature Board  " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Open table" }));
+
+    await waitFor(() => {
+      expect(onCreateRoom).toHaveBeenCalledWith({
+        name: "Sprint Epsilon",
+        scaleType: "fibonacci",
+        password: undefined,
+        slug: "Feature Board",
       });
     });
   });
@@ -57,6 +79,7 @@ describe("CreateRoomForm", () => {
     await waitFor(() => {
       expect(screen.getByLabelText("Room name")).toHaveValue("");
     });
+    expect(screen.getByLabelText("Custom URL slug (optional)")).toHaveValue("");
     expect(screen.getByRole("button", { name: /Fibonacci$/ })).toHaveClass("border-primary/30");
     expect(screen.queryByPlaceholderText("Enter room password")).not.toBeInTheDocument();
   });
