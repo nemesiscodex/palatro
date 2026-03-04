@@ -44,6 +44,7 @@ function RoomRouteComponent() {
   const joinAsHost = useMutation(apiAny.participants.joinAsHost);
   const heartbeat = useMutation(apiAny.participants.heartbeat);
   const leave = useMutation(apiAny.participants.leave);
+  const kick = useMutation(apiAny.participants.kick);
   const castVote = useMutation(apiAny.rounds.castVote);
   const startRound = useMutation(apiAny.rounds.start);
   const restartRound = useMutation(apiAny.rounds.restart);
@@ -313,7 +314,21 @@ function RoomRouteComponent() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ParticipantList participants={roomState.participants} status={roomState.room.status} />
+            <ParticipantList
+              participants={roomState.participants}
+              status={roomState.room.status}
+              canManage={canManage}
+              isBusy={isBusy}
+              onKick={(participantId) => {
+                void runBusyTask(async () => {
+                  await kick({
+                    roomId: roomState.room.id,
+                    participantId,
+                  });
+                  toast.success("Participant removed");
+                }, "Could not remove participant");
+              }}
+            />
           </CardContent>
         </Card>
       </section>

@@ -1,3 +1,4 @@
+import type { Doc, Id } from "./_generated/dataModel";
 import { mutation } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 
@@ -7,10 +8,69 @@ import {
   ensureUniqueDisplayName,
   findGuestParticipantByToken,
   findHostParticipantByUserId,
+  finishRound,
+  getFreshParticipants,
   getRoomBySlugOrThrow,
   requireAuthSession,
 } from "./pokerHelpers";
 import { createGuestToken, hashGuestToken, normalizeDisplayName } from "./pointingPoker";
+
+async function finalizeRoundIfReadyAfterSeatChange(ctx: any, roomId: Id<"rooms">, now: number) {
+  const room = (await ctx.db.get(roomId)) as Doc<"rooms"> | null;
+
+  if (!room?.activeRoundId || room.status !== "voting") {
+    return;
+  }
+
+  const round = (await ctx.db.get(room.activeRoundId)) as Doc<"rounds"> | null;
+  if (!round || round.status !== "voting") {
+    return;
+  }
+
+  const activeParticipants = await getFreshParticipants(ctx, room._id, now);
+  if (activeParticipants.length === 0) {
+    return;
+  }
+
+  const votes = await ctx.db
+    .query("votes")
+    .withIndex("by_roundId", (q: any) => q.eq("roundId", round._id))
+    .collect();
+  const votedParticipantIds = new Set(votes.map((vote: any) => String(vote.participantId)));
+
+  if (
+    activeParticipants.every((activeParticipant: any) =>
+      votedParticipantIds.has(String(activeParticipant._id)),
+    )
+  ) {
+    await finishRound(ctx, room, round, "all_voted");
+  }
+}
+
+async function deactivateParticipant(ctx: any, participant: Doc<"participants">) {
+  const now = Date.now();
+  const room = (await ctx.db.get(participant.roomId)) as Doc<"rooms"> | null;
+
+  if (room?.activeRoundId && room.status === "voting") {
+    const existingVote = await ctx.db
+      .query("votes")
+      .withIndex("by_roundId_and_participantId", (q: any) =>
+        q.eq("roundId", room.activeRoundId).eq("participantId", participant._id),
+      )
+      .unique();
+
+    if (existingVote) {
+      await ctx.db.delete(existingVote._id);
+    }
+  }
+
+  await ctx.db.patch(participant._id, {
+    isActive: false,
+    lastSeenAt: now,
+  });
+
+  await finalizeRoundIfReadyAfterSeatChange(ctx, participant.roomId, now);
+}
 
 export const joinAsGuest = mutation({
   args: {
@@ -145,10 +205,31 @@ export const leave = mutation({
       await assertRoomOwner(ctx, args.roomId);
     }
 
-    await ctx.db.patch(participant._id, {
-      isActive: false,
-      lastSeenAt: Date.now(),
-    });
+    await deactivateParticipant(ctx, participant);
+
+    return null;
+  },
+});
+
+export const kick = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    participantId: v.id("participants"),
+  },
+  handler: async (ctx, args) => {
+    await assertRoomOwner(ctx, args.roomId);
+
+    const participant = (await ctx.db.get(args.participantId)) as Doc<"participants"> | null;
+
+    if (!participant || participant.roomId !== args.roomId || !participant.isActive) {
+      throw new ConvexError("Participant not found");
+    }
+
+    if (participant.kind !== "guest") {
+      throw new ConvexError("Only guest participants can be removed");
+    }
+
+    await deactivateParticipant(ctx, participant);
 
     return null;
   },

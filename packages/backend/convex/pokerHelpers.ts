@@ -207,7 +207,8 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
   const guestParticipant = guestToken
     ? await findGuestParticipantByToken(ctx, room._id, guestToken)
     : null;
-  const viewerParticipant = hostParticipant ?? guestParticipant;
+  const knownParticipant = hostParticipant ?? guestParticipant;
+  const viewerParticipant = knownParticipant?.isActive ? knownParticipant : null;
   const isOwner = !!userId && room.ownerUserId === userId;
 
   return {
@@ -251,6 +252,7 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
           : null,
       displayName:
         viewerParticipant?.displayName ??
+        knownParticipant?.displayName ??
         (isOwner ? normalizeDisplayName(String(authUser?.name ?? authUser?.email ?? "Host")) : ""),
       isAuthenticated: !!userId,
     },

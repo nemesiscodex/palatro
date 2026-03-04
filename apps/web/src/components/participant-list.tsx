@@ -1,3 +1,6 @@
+import { UserRoundX } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface ParticipantListProps {
@@ -9,11 +12,20 @@ interface ParticipantListProps {
     kind: "host" | "guest";
   }>;
   status: "idle" | "voting" | "revealed";
+  canManage?: boolean;
+  isBusy?: boolean;
+  onKick?: (participantId: string) => void;
 }
 
 const SUITS = ["\u2660", "\u2665", "\u2663", "\u2666"];
 
-export default function ParticipantList({ participants, status }: ParticipantListProps) {
+export default function ParticipantList({
+  participants,
+  status,
+  canManage = false,
+  isBusy = false,
+  onKick,
+}: ParticipantListProps) {
   if (participants.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-6 text-center">
@@ -52,13 +64,36 @@ export default function ParticipantList({ participants, status }: ParticipantLis
             </div>
 
             {/* Name + role */}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">
-                {participant.displayName}
-              </p>
-              <p className="text-[0.6rem] font-medium uppercase tracking-[0.2em] text-muted-foreground/60">
-                {participant.kind === "host" ? "Dealer" : "Player"}
-              </p>
+            <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {participant.displayName}
+                </p>
+                <p className="text-[0.6rem] font-medium uppercase tracking-[0.2em] text-muted-foreground/60">
+                  {participant.kind === "host" ? "Dealer" : "Player"}
+                </p>
+              </div>
+
+              {canManage && participant.kind === "guest" && onKick ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  disabled={isBusy}
+                  aria-label={`Kick ${participant.displayName}`}
+                  className={cn(
+                    "mt-0.5 h-7 shrink-0 rounded-full border border-destructive/18 bg-destructive/[0.06] px-2.5 text-destructive",
+                    "tracking-[0.16em] hover:border-destructive/28 hover:bg-destructive/[0.12] hover:text-destructive",
+                    "focus-visible:border-destructive/30 focus-visible:ring-destructive/20",
+                  )}
+                  onClick={() => {
+                    onKick(participant.id);
+                  }}
+                >
+                  <UserRoundX className="size-3.5" />
+                  <span className="hidden sm:inline">Kick</span>
+                </Button>
+              ) : null}
             </div>
 
             {/* Vote indicator */}
