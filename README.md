@@ -1,14 +1,24 @@
-# palatro
+# Palatro
 
-Palatro is a planning poker app for lightweight estimation sessions.
+Palatro is a planning poker app for fast estimation sessions.
 
-It is built for a simple workflow:
+It is built around one simple loop: a host opens a room, shares one stable URL, guests join without accounts, everyone votes in real time, and the round reveals as soon as the table is ready.
 
-- one authenticated host creates and manages rooms
-- each room has a stable shareable URL
-- guests join without logging in
-- participants vote in real time using planning poker cards
-- the room reveals automatically when everyone has voted, or the host can force-finish the round
+## See The Product Fast
+
+Palatro has three main routes:
+
+- `/` shows the public landing page for first-time visitors
+- `/dashboard` is the host control area for signing in and creating rooms
+- `/rooms/:slug` is the live shared room where guests join and the team votes
+
+The core feature is the room itself:
+
+- one room keeps the same shareable URL
+- guests join with only a nickname
+- votes update in real time
+- rounds reveal automatically when all active participants have voted
+- the host can still restart or force-finish a round when needed
 
 ## Current MVP
 
@@ -21,15 +31,58 @@ The current MVP includes:
 - host participation as a voter
 - Fibonacci and power-of-two point scales
 - `?` as the unknown card
-- round controls:
-  - start pointing
-  - restart pointing
-  - force finish round
+- round controls: start pointing, restart pointing, and force finish
 - automatic reveal when all active participants vote
-- result calculation as:
-  - most-voted card, or
-  - tie
+- result calculation as the most-voted card or a tie
 - tie details in the reveal result (top two tied values, highest first)
+
+## Quick Start
+
+Install dependencies:
+
+```bash
+bun install
+```
+
+Configure local Convex and start the app:
+
+```bash
+bun run dev:setup
+bun run dev
+```
+
+Open [http://localhost:3001](http://localhost:3001).
+
+If you need the services separately:
+
+```bash
+bun run dev:server
+bun run dev:web
+```
+
+## Required Local Env
+
+Set the required backend values in [packages/backend/.env.local](/Users/julio/personal/palatro/packages/backend/.env.local):
+
+```env
+SITE_URL=http://localhost:3001
+CONVEX_URL=http://127.0.0.1:3210
+CONVEX_SITE_URL=http://127.0.0.1:3211
+```
+
+Set the required web values in [apps/web/.env](/Users/julio/personal/palatro/apps/web/.env):
+
+```env
+VITE_CONVEX_URL=http://127.0.0.1:3210
+VITE_CONVEX_SITE_URL=http://127.0.0.1:3211
+```
+
+Set the Better Auth secret in Convex:
+
+```bash
+npx convex env set BETTER_AUTH_SECRET=$(openssl rand -base64 32)
+npx convex env set SITE_URL http://localhost:3001
+```
 
 ## Stack
 
@@ -56,82 +109,20 @@ palatro/
 │   └── infra/              # Deployment config
 ```
 
-## Local Development
+## Scripts
 
-Install dependencies:
-
-```bash
-bun install
-```
-
-Configure Convex locally:
-
-```bash
-bun run dev:setup
-```
-
-Set the required backend env values in [packages/backend/.env.local](/Users/julio/personal/palatro/packages/backend/.env.local):
-
-```env
-SITE_URL=http://localhost:3001
-CONVEX_URL=http://127.0.0.1:3210
-CONVEX_SITE_URL=http://127.0.0.1:3211
-```
-
-Set the required web env values in [apps/web/.env](/Users/julio/personal/palatro/apps/web/.env):
-
-```env
-VITE_CONVEX_URL=http://127.0.0.1:3210
-VITE_CONVEX_SITE_URL=http://127.0.0.1:3211
-```
-
-Set the Better Auth secret in Convex:
-
-```bash
-npx convex env set BETTER_AUTH_SECRET=$(openssl rand -base64 32)
-npx convex env set SITE_URL http://localhost:3001
-```
-
-Run the backend and web app:
-
-```bash
-bun run dev:server
-bun run dev:web
-```
-
-Or run the whole workspace:
-
-```bash
-bun run dev
-```
-
-Open [http://localhost:3001](http://localhost:3001).
-
-Main routes:
-
-- `/dashboard` for host sign-in and room creation
-- `/rooms/:slug` for the shared planning poker room
-
-## Available Scripts
-
-- `bun run dev` runs the workspace in development mode
+- `bun run dev` runs the full workspace in development mode
 - `bun run dev:web` runs only the web app
 - `bun run dev:server` runs only the Convex backend
 - `bun run dev:setup` configures local Convex development
 - `bun run build` builds the workspace
 - `bun run check-types` runs type checks across the workspace
-- `bun run test` runs the workspace test suite through Turbo and Vitest
-- `bun run test:coverage` runs the workspace test suite with coverage reporting
+- `bun run test` runs the full monorepo suite through Turbo and Vitest
+- `bun run test:coverage` runs the full monorepo suite with coverage reporting
 - `bun run deploy` deploys infrastructure
 - `bun run destroy` destroys deployed infrastructure
 
 ## Testing
-
-This repo uses two different test entrypoints:
-
-- `bun test` runs Bun's native test runner against the backend-only subset under `packages/backend/convex`
-- `bun run test` runs the full monorepo suite through Turbo and Vitest
-- `bun run test:coverage` runs the full monorepo suite with coverage reporting
 
 Use the full-suite commands for normal development and CI:
 
@@ -140,17 +131,20 @@ bun run test
 bun run test:coverage
 ```
 
-Use `bun test` only when you specifically want the Bun-compatible backend subset:
+Important:
 
-```bash
-bun test
-```
+- `bun run test` is the full monorepo suite
+- `bun run test:coverage` is the full monorepo suite with coverage
+- `bun test` only covers the Bun-compatible backend subset under `packages/backend/convex`
 
-The web tests depend on Vitest configuration (`jsdom`, setup files, and Turbo orchestration), so they are only covered by `bun run test` and `bun run test:coverage`.
+## Contributing
 
-## Notes
+Issues and pull requests are welcome.
 
-- The host is the only user who needs to authenticate.
-- Guests do not need accounts.
-- Convex handles the realtime room state and round updates.
-- Better Auth handles host sessions and token bridging into Convex.
+Before opening a PR:
+
+- keep visible polish tight: broken spacing, alignment issues, dead links, and awkward states are product problems
+- test first impressions for a brand-new visitor, not only your returning local session
+- verify desktop and mobile layouts
+- verify both light and dark mode behavior
+- include tests with new features, and add regression tests for bug fixes when practical
