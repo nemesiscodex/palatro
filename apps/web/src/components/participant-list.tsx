@@ -11,34 +11,88 @@ interface ParticipantListProps {
   status: "idle" | "voting" | "revealed";
 }
 
+const SUITS = ["\u2660", "\u2665", "\u2663", "\u2666"];
+
 export default function ParticipantList({ participants, status }: ParticipantListProps) {
+  if (participants.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-6 text-center">
+        <span className="text-2xl opacity-20">{"\u2660"}</span>
+        <p className="ornate-label text-muted-foreground/60">No players at the table</p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-2">
-      {participants.map((participant) => (
-        <div
-          key={participant.id}
-          className="border-border flex items-center justify-between rounded-none border px-3 py-2"
-        >
-          <div>
-            <p className="font-medium">{participant.displayName}</p>
-            <p className="text-muted-foreground text-xs">
-              {participant.kind === "host" ? "Host" : "Guest"}
-            </p>
-          </div>
-          <div className="text-right">
-            {status === "revealed" ? (
-              <p className="font-mono text-sm">{participant.revealedVote ?? "No vote"}</p>
-            ) : (
-              <span
-                className={cn(
-                  "inline-flex h-2.5 w-2.5 rounded-full",
-                  participant.hasVoted ? "bg-emerald-500" : "bg-zinc-500",
-                )}
-              />
+      {participants.map((participant, index) => {
+        const suit = SUITS[index % SUITS.length];
+        const isRedSuit = suit === "\u2665" || suit === "\u2666";
+
+        return (
+          <div
+            key={participant.id}
+            className={cn(
+              "group flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 transition-all duration-300",
+              status === "voting" && participant.hasVoted && "border-primary/15 bg-primary/[0.04]",
+              status === "revealed" && "border-white/[0.08]",
             )}
+            style={{
+              animation: `stagger-rise 0.5s cubic-bezier(0.16, 0.84, 0.24, 1) ${index * 60}ms both`,
+            }}
+          >
+            {/* Suit avatar */}
+            <div className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm transition-colors",
+              participant.kind === "host"
+                ? "bg-primary/15 text-primary border border-primary/20"
+                : "bg-white/[0.05] text-muted-foreground border border-white/[0.08]",
+            )}>
+              {participant.kind === "host" ? "\u2660" : suit}
+            </div>
+
+            {/* Name + role */}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-foreground">
+                {participant.displayName}
+              </p>
+              <p className="text-[0.6rem] font-medium uppercase tracking-[0.2em] text-muted-foreground/60">
+                {participant.kind === "host" ? "Dealer" : "Player"}
+              </p>
+            </div>
+
+            {/* Vote indicator */}
+            <div className="flex shrink-0 items-center">
+              {status === "revealed" ? (
+                <div
+                  className="card-face flex h-10 w-8 items-center justify-center rounded-lg"
+                  style={{
+                    animation: `deal-card 0.4s cubic-bezier(0.16, 0.84, 0.24, 1) ${200 + index * 80}ms both`,
+                  }}
+                >
+                  <span className={cn(
+                    "font-serif text-lg font-bold",
+                    isRedSuit ? "text-red-700" : "text-neutral-800",
+                  )}>
+                    {participant.revealedVote ?? "\u2014"}
+                  </span>
+                </div>
+              ) : status === "voting" ? (
+                <div className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full transition-all duration-500",
+                  participant.hasVoted
+                    ? "chip text-[0.55rem] font-bold text-primary-foreground"
+                    : "border border-white/10 bg-white/[0.03] text-muted-foreground/30",
+                )}>
+                  {participant.hasVoted ? "\u2713" : "\u00B7"}
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground/30">{"\u2014"}</span>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

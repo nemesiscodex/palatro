@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 
+import { hashPassword } from "./passwordUtils";
 import {
   assertRoomOwner,
   buildRoomState,
@@ -14,6 +15,7 @@ export const create = mutation({
   args: {
     name: v.string(),
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two")),
+    password: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId } = await requireAuthSession(ctx);
@@ -32,6 +34,9 @@ export const create = mutation({
       slug = `${slugBase}-${suffix}`;
     }
 
+    const password = args.password?.trim() || undefined;
+    const passwordHash = password ? await hashPassword(password) : undefined;
+
     const now = Date.now();
     const roomId = await ctx.db.insert("rooms", {
       ownerUserId: userId,
@@ -39,6 +44,7 @@ export const create = mutation({
       slug,
       scaleType: args.scaleType,
       allowUnknown: true,
+      password: passwordHash,
       status: "idle",
       createdAt: now,
       updatedAt: now,
@@ -71,6 +77,7 @@ export const listMine = query({
       slug: room.slug,
       scaleType: room.scaleType,
       status: room.status,
+      hasPassword: !!room.password,
       createdAt: room.createdAt,
       updatedAt: room.updatedAt,
     }));
@@ -105,5 +112,25 @@ export const updateConfig = mutation({
     });
 
     return await getRoomBySlugOrThrow(ctx, room.slug);
+  },
+});
+
+export const updatePassword = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    password: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { room } = await assertRoomOwner(ctx, args.roomId);
+
+    const plaintext = args.password?.trim() || undefined;
+    const passwordHash = plaintext ? await hashPassword(plaintext) : undefined;
+
+    await ctx.db.patch(room._id, {
+      password: passwordHash,
+      updatedAt: Date.now(),
+    });
+
+    return { hasPassword: !!passwordHash };
   },
 });

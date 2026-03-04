@@ -126,6 +126,7 @@ export async function ensureUniqueDisplayName(
   excludeParticipantId?: Id<"participants">,
 ) {
   const normalized = normalizeDisplayName(displayName).toLowerCase();
+  const now = Date.now();
 
   const participants = await ctx.db
     .query("participants")
@@ -133,7 +134,11 @@ export async function ensureUniqueDisplayName(
     .collect();
 
   const duplicate = participants.find((participant: Doc<"participants">) => {
-    if (!participant.isActive || participant._id === excludeParticipantId) {
+    if (
+      !participant.isActive ||
+      !isParticipantFresh(participant.lastSeenAt, now) ||
+      participant._id === excludeParticipantId
+    ) {
       return false;
     }
     return normalizeDisplayName(participant.displayName).toLowerCase() === normalized;
@@ -212,6 +217,7 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
       slug: room.slug,
       scaleType: room.scaleType,
       status: room.status,
+      hasPassword: !!room.password,
     },
     deck: getDeck(room.scaleType),
     participants: participants.map((participant: Doc<"participants">) => {

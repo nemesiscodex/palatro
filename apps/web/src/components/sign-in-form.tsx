@@ -40,8 +40,20 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
   });
 
   return (
-    <div className="mx-auto w-full mt-10 max-w-md p-6">
-      <h1 className="mb-6 text-center text-3xl font-bold">Welcome Back</h1>
+    <div className="felt-panel relative mx-auto w-full max-w-md overflow-hidden rounded-[2rem] p-8 shadow-[0_32px_80px_rgba(0,0,0,0.35)]">
+      {/* Decorative corner suits */}
+      <span className="absolute top-5 right-6 font-serif text-2xl text-primary/[0.06]">{"\u2665"}</span>
+      <span className="absolute bottom-5 left-6 rotate-180 font-serif text-2xl text-primary/[0.06]">{"\u2660"}</span>
+
+      <p className="ornate-label mb-4 text-primary/60">Dealer return</p>
+      <h1 className="mb-2 font-serif text-4xl leading-none tracking-tight">
+        Back to the <span className="text-gold-gradient italic">table</span>
+      </h1>
+      <p className="text-muted-foreground mb-7 text-sm leading-relaxed">
+        Rejoin your rooms and run the next round.
+      </p>
+
+      <div className="gold-rule mb-6" />
 
       <form
         onSubmit={(e) => {
@@ -63,9 +75,10 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder="you@team.com"
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
+                  <p key={error?.message} className="text-destructive text-xs">
                     {error?.message}
                   </p>
                 ))}
@@ -86,9 +99,10 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder="Your password"
                 />
                 {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
+                  <p key={error?.message} className="text-destructive text-xs">
                     {error?.message}
                   </p>
                 ))}
@@ -104,19 +118,15 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
               className="w-full"
               disabled={!state.canSubmit || state.isSubmitting}
             >
-              {state.isSubmitting ? "Submitting..." : "Sign In"}
+              {state.isSubmitting ? "Entering..." : "Sign in"}
             </Button>
           )}
         </form.Subscribe>
       </form>
 
-      <div className="mt-4 text-center">
-        <Button
-          variant="link"
-          onClick={onSwitchToSignUp}
-          className="text-indigo-600 hover:text-indigo-800"
-        >
-          Need an account? Sign Up
+      <div className="mt-5 text-center">
+        <Button variant="link" onClick={onSwitchToSignUp} className="text-primary/70 hover:text-primary">
+          Need an account? Sign up
         </Button>
       </div>
     </div>

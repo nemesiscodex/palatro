@@ -22,15 +22,33 @@ export default function RoundControls({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid gap-3">
+      {/* Status indicator */}
+      <div className="mb-1 flex items-center gap-2.5">
+        <span
+          className={
+            status === "voting"
+              ? "inline-block h-2 w-2 rounded-full bg-primary status-voting"
+              : status === "revealed"
+                ? "inline-block h-2 w-2 rounded-full bg-accent"
+                : "inline-block h-2 w-2 rounded-full bg-muted-foreground/30"
+          }
+        />
+        <span className="ornate-label text-muted-foreground">
+          {status === "voting" ? "Live" : status === "revealed" ? "Revealed" : "Waiting"}
+        </span>
+      </div>
+
       <Button
         type="button"
         disabled={isBusy || status === "voting"}
         onClick={() => {
           void onStart();
         }}
+        className="w-full justify-center gap-2"
       >
-        Start pointing
+        <span className="text-xs opacity-70">{"\u2660"}</span>
+        {status === "idle" ? "Deal the cards" : "Start pointing"}
       </Button>
       <Button
         type="button"
@@ -39,8 +57,9 @@ export default function RoundControls({
         onClick={() => {
           void onRestart();
         }}
+        className="w-full justify-center"
       >
-        Restart pointing
+        Restart round
       </Button>
       <Button
         type="button"
@@ -49,8 +68,9 @@ export default function RoundControls({
         onClick={() => {
           void onForceFinish();
         }}
+        className="w-full justify-center"
       >
-        Force finish
+        Force reveal
       </Button>
     </div>
   );

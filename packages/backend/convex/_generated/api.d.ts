@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as healthCheck from "../healthCheck.js";
 import type * as http from "../http.js";
 import type * as participants from "../participants.js";
+import type * as passwordUtils from "../passwordUtils.js";
 import type * as pointingPoker from "../pointingPoker.js";
 import type * as pokerHelpers from "../pokerHelpers.js";
 import type * as privateData from "../privateData.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   healthCheck: typeof healthCheck;
   http: typeof http;
   participants: typeof participants;
+  passwordUtils: typeof passwordUtils;
   pointingPoker: typeof pointingPoker;
   pokerHelpers: typeof pokerHelpers;
   privateData: typeof privateData;

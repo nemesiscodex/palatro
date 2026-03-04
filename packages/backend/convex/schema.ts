@@ -8,6 +8,7 @@ export default defineSchema({
     slug: v.string(),
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two")),
     allowUnknown: v.boolean(),
+    password: v.optional(v.string()),
     status: v.union(v.literal("idle"), v.literal("voting"), v.literal("revealed")),
     activeRoundId: v.optional(v.id("rounds")),
     createdAt: v.number(),

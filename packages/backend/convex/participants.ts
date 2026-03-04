@@ -1,6 +1,7 @@
 import { mutation } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 
+import { verifyPassword } from "./passwordUtils";
 import {
   assertRoomOwner,
   ensureUniqueDisplayName,
@@ -16,6 +17,7 @@ export const joinAsGuest = mutation({
     slug: v.string(),
     nickname: v.string(),
     guestToken: v.optional(v.string()),
+    password: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const room = await getRoomBySlugOrThrow(ctx, args.slug);
@@ -25,9 +27,18 @@ export const joinAsGuest = mutation({
       throw new ConvexError("Nickname is required");
     }
 
-    const now = Date.now();
+    // If the room has a password, verify it (skip for returning participants)
     const persistedToken = args.guestToken?.trim() || createGuestToken();
     const existingParticipant = await findGuestParticipantByToken(ctx, room._id, persistedToken);
+
+    if (room.password && !existingParticipant) {
+      const supplied = args.password?.trim();
+      if (!supplied || !(await verifyPassword(supplied, room.password))) {
+        throw new ConvexError("Incorrect room password");
+      }
+    }
+
+    const now = Date.now();
 
     await ensureUniqueDisplayName(ctx, room._id, displayName, existingParticipant?._id);
 

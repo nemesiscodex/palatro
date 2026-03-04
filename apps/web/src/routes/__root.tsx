@@ -39,7 +39,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "My App",
+        title: "Palatro — Pointing Poker",
+      },
+      {
+        name: "description",
+        content: "A smoky planning table for sharp teams. Real-time pointing poker with shareable rooms.",
       },
     ],
     links: [
