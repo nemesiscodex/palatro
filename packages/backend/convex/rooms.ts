@@ -11,6 +11,11 @@ import {
   requireAuthSession,
 } from "./pokerHelpers";
 import { createSlugCandidate, normalizeDisplayName } from "./pointingPoker";
+import {
+  assertRoomCreateRateLimit,
+  assertRoomDeleteRateLimit,
+  assertRoomSettingsRateLimit,
+} from "./rateLimit";
 
 export const create = mutation({
   args: {
@@ -20,6 +25,7 @@ export const create = mutation({
   },
   handler: withUnexpectedErrorLogging("rooms.create", async (ctx, args) => {
     const { userId } = await requireAuthSession(ctx);
+    await assertRoomCreateRateLimit(ctx, userId);
     const name = normalizeDisplayName(args.name);
 
     if (!name) {
@@ -104,6 +110,7 @@ export const updateConfig = mutation({
   },
   handler: withUnexpectedErrorLogging("rooms.updateConfig", async (ctx, args) => {
     const { room } = await assertRoomOwner(ctx, args.roomId);
+    await assertRoomSettingsRateLimit(ctx, String(room._id));
 
     if (room.status === "voting") {
       throw new ConvexError("Cannot change room settings during an active round");
@@ -125,6 +132,7 @@ export const updatePassword = mutation({
   },
   handler: withUnexpectedErrorLogging("rooms.updatePassword", async (ctx, args) => {
     const { room } = await assertRoomOwner(ctx, args.roomId);
+    await assertRoomSettingsRateLimit(ctx, String(room._id));
 
     const plaintext = args.password?.trim() || undefined;
     const passwordHash = plaintext ? await hashPassword(plaintext) : undefined;
@@ -143,7 +151,8 @@ export const remove = mutation({
     roomId: v.id("rooms"),
   },
   handler: withUnexpectedErrorLogging("rooms.remove", async (ctx, args) => {
-    const { room } = await assertRoomOwner(ctx, args.roomId);
+    const { room, userId } = await assertRoomOwner(ctx, args.roomId);
+    await assertRoomDeleteRateLimit(ctx, userId);
 
     const rounds = await ctx.db
       .query("rounds")

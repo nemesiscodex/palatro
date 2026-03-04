@@ -13,9 +13,14 @@ import {
   getFreshParticipants,
   requireAuthSession,
 } from "./pokerHelpers";
+import {
+  assertRoundControlRateLimit,
+  assertVoteCastRateLimit,
+} from "./rateLimit";
 
 async function startRoundForRoom(ctx: any, roomId: Id<"rooms">, allowActiveRoundReset: boolean) {
   const { room } = await assertRoomOwner(ctx, roomId);
+  await assertRoundControlRateLimit(ctx, String(room._id));
   const now = Date.now();
 
   if (room.status === "voting" && !allowActiveRoundReset) {
@@ -129,6 +134,7 @@ export const castVote = mutation({
 
     assertVoteValueAllowed(room.scaleType, args.value);
     const participant = await resolveVotingParticipant(ctx, room, args.participantId, args.guestToken);
+    await assertVoteCastRateLimit(ctx, String(participant._id));
     const now = Date.now();
     const existingVote = await ctx.db
       .query("votes")
@@ -183,6 +189,7 @@ export const forceFinish = mutation({
   },
   handler: withUnexpectedErrorLogging("rounds.forceFinish", async (ctx, args) => {
     const { room } = await assertRoomOwner(ctx, args.roomId);
+    await assertRoundControlRateLimit(ctx, String(room._id));
 
     if (!room.activeRoundId || room.status !== "voting") {
       throw new ConvexError("No active round to finish");

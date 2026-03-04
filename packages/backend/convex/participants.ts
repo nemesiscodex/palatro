@@ -15,6 +15,10 @@ import {
   requireAuthSession,
 } from "./pokerHelpers";
 import { createGuestToken, hashGuestToken, normalizeDisplayName } from "./pointingPoker";
+import {
+  assertGuestJoinRateLimit,
+  assertParticipantModerationRateLimit,
+} from "./rateLimit";
 
 async function finalizeRoundIfReadyAfterSeatChange(ctx: any, roomId: Id<"rooms">, now: number) {
   const room = (await ctx.db.get(roomId)) as Doc<"rooms"> | null;
@@ -87,6 +91,9 @@ export const joinAsGuest = mutation({
     if (!displayName) {
       throw new ConvexError("Nickname is required");
     }
+
+    const sessionKey = args.guestToken?.trim() || displayName.toLowerCase();
+    await assertGuestJoinRateLimit(ctx, String(room._id), sessionKey);
 
     // If the room has a password, verify it (skip for returning participants)
     const persistedToken = args.guestToken?.trim() || createGuestToken();
@@ -219,6 +226,7 @@ export const kick = mutation({
   },
   handler: withUnexpectedErrorLogging("participants.kick", async (ctx, args) => {
     await assertRoomOwner(ctx, args.roomId);
+    await assertParticipantModerationRateLimit(ctx, String(args.roomId));
 
     const participant = (await ctx.db.get(args.participantId)) as Doc<"participants"> | null;
 

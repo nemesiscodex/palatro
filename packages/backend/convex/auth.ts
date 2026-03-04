@@ -17,6 +17,20 @@ function createAuth(ctx: GenericCtx<DataModel>) {
     baseURL: siteUrl,
     trustedOrigins: [siteUrl],
     database: authComponent.adapter(ctx),
+    rateLimit: {
+      enabled: true,
+      storage: "database",
+      customRules: {
+        "/sign-in/email": {
+          window: 60,
+          max: 5,
+        },
+        "/sign-up/email": {
+          window: 5 * 60,
+          max: 3,
+        },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
