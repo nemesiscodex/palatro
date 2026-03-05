@@ -42,7 +42,7 @@ export default function PointCardGrid({
             className={cn(
               "group/poker-card relative flex flex-col items-center justify-center",
               "h-[7.5rem] rounded-xl transition-all duration-300 ease-out",
-              "disabled:pointer-events-none disabled:opacity-40",
+              "cursor-pointer disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
               "hover:-translate-y-2 hover:scale-[1.04] active:scale-[0.98]",
               isSelected
                 ? "card-face -translate-y-2 ring-2 ring-amber-500/60 shadow-[0_12px_40px_rgba(218,185,100,0.35),0_4px_12px_rgba(0,0,0,0.2)]"

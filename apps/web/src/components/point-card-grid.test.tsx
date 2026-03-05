@@ -23,4 +23,10 @@ describe("PointCardGrid", () => {
 
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  it("shows clickable cursor styling for enabled cards", () => {
+    render(<PointCardGrid deck={["1"]} selectedValue={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: /1/ })).toHaveClass("cursor-pointer");
+  });
 });
