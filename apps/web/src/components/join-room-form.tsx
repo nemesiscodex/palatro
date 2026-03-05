@@ -11,9 +11,11 @@ interface JoinRoomFormProps {
 }
 
 export default function JoinRoomForm({ defaultValue = "", hasPassword = false, onJoin }: JoinRoomFormProps) {
-  const [nickname, setNickname] = useState(defaultValue);
+  const [nickname, setNickname] = useState("");
+  const [didEditNickname, setDidEditNickname] = useState(false);
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const nicknameValue = didEditNickname ? nickname : defaultValue;
 
   return (
     <div className="flex flex-col items-center gap-5 py-4">
@@ -42,7 +44,7 @@ export default function JoinRoomForm({ defaultValue = "", hasPassword = false, o
 
           setIsSubmitting(true);
           try {
-            await onJoin(nickname, hasPassword ? password : undefined);
+            await onJoin(nicknameValue, hasPassword ? password : undefined);
           } finally {
             setIsSubmitting(false);
           }
@@ -50,13 +52,16 @@ export default function JoinRoomForm({ defaultValue = "", hasPassword = false, o
       >
         <div className="grid gap-2">
           <Label htmlFor="nickname">Your name</Label>
-          <Input
-            id="nickname"
-            value={nickname}
-            onChange={(event) => setNickname(event.target.value)}
-            placeholder="e.g. Alex"
-            className="bg-black/10 text-center"
-          />
+            <Input
+              id="nickname"
+              value={nicknameValue}
+              onChange={(event) => {
+                setDidEditNickname(true);
+                setNickname(event.target.value);
+              }}
+              placeholder="e.g. Alex"
+              className="bg-black/10 text-center"
+            />
         </div>
         {hasPassword ? (
           <div className="grid gap-2">

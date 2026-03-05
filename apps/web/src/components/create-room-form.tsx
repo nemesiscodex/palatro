@@ -81,7 +81,9 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
 
       {/* Scale type as pill selector */}
       <div className="grid gap-2">
-        <Label>Point scale</Label>
+        <p className="gap-2 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-muted-foreground/80 leading-none flex items-center select-none">
+          Point scale
+        </p>
         <div className="grid gap-2">
           {SCALE_OPTIONS.map((option) => (
             <button

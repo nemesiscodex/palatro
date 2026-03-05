@@ -24,7 +24,7 @@ const getAuth = createServerFn({ method: "GET" }).handler(async () => {
   return await getToken();
 });
 
-export interface RouterAppContext {
+interface RouterAppContext {
   queryClient: QueryClient;
   convexQueryClient: ConvexQueryClient;
 }

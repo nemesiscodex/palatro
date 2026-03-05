@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ScaleType } from "@palatro/backend/convex/pointingPoker";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 interface RoomConfigPanelProps {
@@ -31,12 +30,20 @@ export default function RoomConfigPanel({
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isEditingPassword) {
+      return;
+    }
+    passwordInputRef.current?.focus();
+  }, [isEditingPassword]);
 
   return (
     <div className="grid gap-5">
       {/* Scale type */}
       <div className="grid gap-3">
-        <Label className="ornate-label text-muted-foreground/70">Point scale</Label>
+        <p className="ornate-label text-muted-foreground/70">Point scale</p>
         <div className="grid gap-2">
           {SCALE_OPTIONS.map((option) => {
             const isActive = scaleType === option.value;
@@ -80,7 +87,7 @@ export default function RoomConfigPanel({
       {/* Room password */}
       <div className="grid gap-3">
         <div className="gold-rule" />
-        <Label className="ornate-label text-muted-foreground/70">Room password</Label>
+        <p className="ornate-label text-muted-foreground/70">Room password</p>
 
         {!isEditingPassword ? (
           <div className="grid gap-2">
@@ -162,12 +169,12 @@ export default function RoomConfigPanel({
             }}
           >
             <Input
+              ref={passwordInputRef}
               type="password"
               value={passwordDraft}
               onChange={(event) => setPasswordDraft(event.target.value)}
               placeholder="Enter new password"
               className="bg-black/10"
-              autoFocus
             />
             <div className="flex gap-2">
               <Button

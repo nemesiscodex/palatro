@@ -95,8 +95,8 @@ describe("CreateRoomForm", () => {
     render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
 
     fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "Sprint Delta" } });
-    fireEvent.submit(screen.getByRole("button", { name: "Open table" }).closest("form")!);
-    fireEvent.submit(screen.getByRole("button", { name: "Creating..." }).closest("form")!);
+    fireEvent.click(screen.getByRole("button", { name: "Open table" }));
+    fireEvent.click(screen.getByRole("button", { name: "Creating..." }));
 
     expect(onCreateRoom).toHaveBeenCalledTimes(1);
 

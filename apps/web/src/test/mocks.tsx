@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from "react";
+import type { PropsWithChildren } from "react";
 
 import { vi } from "vitest";
 
@@ -35,14 +35,4 @@ export function RenderIf({
   children,
 }: PropsWithChildren<{ when: boolean }>) {
   return when ? <>{children}</> : null;
-}
-
-export function createMutationSpy<TArgs extends unknown[] = [any], TResult = unknown>(
-  implementation?: (...args: TArgs) => TResult,
-) {
-  return vi.fn(implementation);
-}
-
-export function asRenderedNode(node: ReactNode) {
-  return node;
 }

@@ -46,8 +46,8 @@ describe("JoinRoomForm", () => {
     render(<JoinRoomForm onJoin={onJoin} />);
 
     fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Alex" } });
-    fireEvent.submit(screen.getByRole("button", { name: "Join the table" }).closest("form")!);
-    fireEvent.submit(screen.getByRole("button", { name: "Joining..." }).closest("form")!);
+    fireEvent.click(screen.getByRole("button", { name: "Join the table" }));
+    fireEvent.click(screen.getByRole("button", { name: "Joining..." }));
 
     expect(onJoin).toHaveBeenCalledTimes(1);
 
@@ -55,5 +55,13 @@ describe("JoinRoomForm", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Join the table" })).toBeEnabled();
     });
+  });
+
+  it("updates nickname when defaultValue prop changes", () => {
+    const { rerender } = render(<JoinRoomForm onJoin={onJoin} defaultValue="Alex" />);
+    expect(screen.getByLabelText("Your name")).toHaveValue("Alex");
+
+    rerender(<JoinRoomForm onJoin={onJoin} defaultValue="Taylor" />);
+    expect(screen.getByLabelText("Your name")).toHaveValue("Taylor");
   });
 });
