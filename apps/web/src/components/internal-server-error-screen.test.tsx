@@ -11,7 +11,7 @@ describe("InternalServerErrorScreen", () => {
     expect(screen.getByRole("heading", { name: "Internal server error" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Something went wrong on our side. This screen is intentionally static so it can render even when backend requests fail.",
+        "Oops! Something went wrong on our side. Please try again later.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go back home" })).toHaveAttribute("href", "/");
