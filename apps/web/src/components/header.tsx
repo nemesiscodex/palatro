@@ -11,17 +11,26 @@ export default function Header() {
   const links = [{ to: "/dashboard", label: "Dashboard" }] as const;
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[rgba(5,16,14,0.72)] backdrop-blur-2xl backdrop-saturate-150">
+    <header className="sticky top-0 z-20 border-b border-white/6 bg-[rgba(5,16,14,0.72)] backdrop-blur-2xl backdrop-saturate-150">
       <div className="mx-auto flex max-w-7xl flex-col px-5 py-3.5">
         <div className="flex items-center justify-between gap-4">
-          <Link to="/dashboard" className="group flex items-center gap-3.5">
-            {/* Logo mark — spade suit with gold ring */}
-            <span className="relative flex h-11 w-11 items-center justify-center rounded-full border border-primary/25 bg-gradient-to-br from-primary/15 to-primary/5 font-serif text-xl text-primary shadow-[0_0_20px_rgba(218,185,100,0.12)] transition-all duration-300 group-hover:border-primary/40 group-hover:shadow-[0_0_28px_rgba(218,185,100,0.2)]">
-              {"\u2660"}
+          <Link to="/dashboard" className="group flex items-center gap-2.5">
+            <span className="relative flex h-11 w-11 items-center justify-center transition-all duration-300 group-hover:drop-shadow-[0_0_12px_rgba(34,122,92,0.28)]">
+              <img
+                src="/brand/palatro-logo.svg"
+                alt="Palatro joker mark"
+                className="h-11 w-11 object-contain"
+                loading="eager"
+              />
             </span>
-            <span className="flex flex-col">
-              <span className="ornate-label text-primary/70 transition-colors group-hover:text-primary/90">Palatro</span>
-              <span className="font-serif text-[1.35rem] leading-none text-foreground tracking-tight">
+            <span className="flex flex-col items-start justify-center gap-0.5">
+              <img
+                src="/brand/palatro-texto-logo.svg"
+                alt="Palatro"
+                className="h-6 w-auto object-contain opacity-95 transition-opacity duration-300 group-hover:opacity-100"
+                loading="eager"
+              />
+              <span className="text-[0.74rem] font-medium uppercase tracking-[0.18em] text-primary/75 transition-colors group-hover:text-primary/90">
                 Pointing Poker
               </span>
             </span>

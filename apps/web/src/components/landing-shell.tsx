@@ -9,7 +9,20 @@ export default function LandingShell() {
   return (
     <main className="mx-auto grid w-full max-w-7xl gap-12 px-5 py-12 lg:grid-cols-[1.15fr_minmax(340px,440px)] lg:items-center">
       <section className="stagger-rise grid gap-7">
-        <p className="ornate-label text-primary/60">Pointing poker</p>
+        <div className="flex items-center gap-4">
+          <img
+            src="/brand/palatro-logo.svg"
+            alt="Palatro joker mark"
+            className="h-12 w-12 object-contain rounded-full border border-primary/20 bg-white/[0.03] p-1.5"
+            loading="eager"
+          />
+          <img
+            src="/brand/palatro-texto-logo.svg"
+            alt="Palatro"
+            className="h-7 w-auto object-contain opacity-90"
+            loading="eager"
+          />
+        </div>
 
         <h1 className="max-w-2xl font-serif text-[4.2rem] leading-[0.88] text-foreground tracking-tight">
           A smoky
