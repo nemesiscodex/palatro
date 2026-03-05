@@ -254,6 +254,8 @@ describe("RoomPage", () => {
 
     render(<RoomPage slug="demo-room" />);
 
+    expect(screen.getByRole("main").className).toContain("items-start");
+    expect(screen.getByTestId("room-main-column").className).toContain("gap-4");
     expect(screen.getByText("Round 1 result")).toBeInTheDocument();
     expect(screen.getByText("Configuration")).toBeInTheDocument();
     expect(screen.queryByText("Only the room owner can manage rounds.")).not.toBeInTheDocument();

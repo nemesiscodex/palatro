@@ -139,8 +139,8 @@ export function RoomPage({ slug }: { slug: string }) {
   }
 
   return (
-    <main className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,360px)]">
-      <section className="grid gap-6">
+    <main className="mx-auto grid w-full max-w-7xl items-start gap-8 px-5 py-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,360px)]">
+      <section data-testid="room-main-column" className="grid gap-4 lg:gap-5">
         {/* Room header */}
         <div className="stagger-rise">
           <div className="flex items-start gap-3">
