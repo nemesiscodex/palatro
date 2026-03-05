@@ -15,6 +15,7 @@ describe("pointingPoker helpers", () => {
   it("returns the expected deck for each scale", () => {
     expect(getDeck("fibonacci")).toEqual(["?", "1", "2", "3", "5", "8", "13", "21"]);
     expect(getDeck("powers_of_two")).toEqual(["?", "1", "2", "4", "8", "16", "32"]);
+    expect(getDeck("t_shirt")).toEqual(["?", "XS", "S", "M", "L", "XL"]);
   });
 
   it("normalizes display names", () => {
@@ -57,6 +58,10 @@ describe("pointingPoker helpers", () => {
     expect(computeRoundResult(["3", "8", "3", "8", "1"])).toEqual({
       resultType: "tie",
       resultValue: "8 / 3",
+    });
+    expect(computeRoundResult(["M", "XL", "M", "XL"])).toEqual({
+      resultType: "tie",
+      resultValue: "XL / M",
     });
     expect(computeRoundResult(["?", "?"])).toEqual({
       resultType: "tie",

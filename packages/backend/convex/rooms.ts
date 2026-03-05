@@ -21,7 +21,7 @@ import {
 export const create = mutation({
   args: {
     name: v.string(),
-    scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two")),
+    scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
     password: v.optional(v.string()),
     slug: v.optional(v.string()),
   },
@@ -119,7 +119,7 @@ export const getBySlug = query({
 export const updateConfig = mutation({
   args: {
     roomId: v.id("rooms"),
-    scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two")),
+    scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
   },
   handler: withUnexpectedErrorLogging("rooms.updateConfig", async (ctx, args) => {
     const { room } = await assertRoomOwner(ctx, args.roomId);

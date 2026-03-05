@@ -37,6 +37,7 @@ describe("RoomList", () => {
 
     expect(screen.getByText("Sprint Poker")).toBeInTheDocument();
     expect(screen.getByText("/rooms/sprint-poker")).toBeInTheDocument();
+    expect(screen.getByText("Fibonacci")).toBeInTheDocument();
     expect(screen.getByText("Live")).toBeInTheDocument();
     expect(screen.getByText(/Locked/)).toBeInTheDocument();
 
@@ -48,5 +49,25 @@ describe("RoomList", () => {
         slug: "sprint-poker",
       }),
     );
+  });
+
+  it("renders t-shirt scale rooms", () => {
+    render(
+      <RoomList
+        rooms={[
+          {
+            id: "room-2",
+            name: "Sizing Room",
+            slug: "sizing-room",
+            scaleType: "t_shirt",
+            status: "idle",
+            hasPassword: false,
+          },
+        ]}
+        onDeleteRoom={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("T-Shirt")).toBeInTheDocument();
   });
 });

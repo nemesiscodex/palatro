@@ -6,7 +6,7 @@ export default defineSchema({
     ownerUserId: v.string(),
     name: v.string(),
     slug: v.string(),
-    scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two")),
+    scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
     allowUnknown: v.boolean(),
     password: v.optional(v.string()),
     status: v.union(v.literal("idle"), v.literal("voting"), v.literal("revealed")),

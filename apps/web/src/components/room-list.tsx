@@ -20,6 +20,12 @@ const STATUS_MAP = {
   revealed: { label: "Revealed", color: "bg-accent/15 text-accent", dot: "bg-accent" },
 } as const;
 
+const SCALE_LABELS: Record<ScaleType, string> = {
+  fibonacci: "Fibonacci",
+  powers_of_two: "Power of Two",
+  t_shirt: "T-Shirt",
+};
+
 export default function RoomList({
   rooms,
   onDeleteRoom,
@@ -70,7 +76,7 @@ export default function RoomList({
                   {room.name}
                 </h3>
                 <p className="mt-1 flex items-center gap-2 text-[0.62rem] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-                  {room.scaleType === "fibonacci" ? "Fibonacci" : "Power of Two"}
+                  {SCALE_LABELS[room.scaleType]}
                   {room.hasPassword ? (
                     <span className="inline-flex items-center gap-1 rounded-full border border-primary/15 bg-primary/[0.06] px-1.5 py-0.5 text-[0.5rem] text-primary/70" title="Password protected">
                       {"\u2660"} Locked

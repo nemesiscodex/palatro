@@ -1,6 +1,6 @@
 export const ACTIVE_PARTICIPANT_STALE_MS = 2 * 60 * 1000;
 
-export const SCALE_TYPES = ["fibonacci", "powers_of_two"] as const;
+export const SCALE_TYPES = ["fibonacci", "powers_of_two", "t_shirt"] as const;
 export type ScaleType = (typeof SCALE_TYPES)[number];
 
 export const ROOM_STATUSES = ["idle", "voting", "revealed"] as const;
@@ -14,9 +14,23 @@ export type ResultType = (typeof RESULT_TYPES)[number];
 
 const FIBONACCI_DECK = ["?", "1", "2", "3", "5", "8", "13", "21"] as const;
 const POWERS_OF_TWO_DECK = ["?", "1", "2", "4", "8", "16", "32"] as const;
+const T_SHIRT_DECK = ["?", "XS", "S", "M", "L", "XL"] as const;
+const T_SHIRT_RANK = {
+  XS: 1,
+  S: 2,
+  M: 3,
+  L: 4,
+  XL: 5,
+} as const;
 
 export function getDeck(scaleType: ScaleType) {
-  return (scaleType === "powers_of_two" ? [...POWERS_OF_TWO_DECK] : [...FIBONACCI_DECK]) as string[];
+  if (scaleType === "powers_of_two") {
+    return [...POWERS_OF_TWO_DECK] as string[];
+  }
+  if (scaleType === "t_shirt") {
+    return [...T_SHIRT_DECK] as string[];
+  }
+  return [...FIBONACCI_DECK] as string[];
 }
 
 export function normalizeDisplayName(value: string) {
@@ -87,12 +101,23 @@ export function computeRoundResult(values: string[]) {
   }
 
   if (winners.length !== 1) {
-    const tieValues = winners
-      .map((value) => Number(value))
-      .sort((left, right) => right - left)
-      .slice(0, 2)
-      .map((value) => String(value))
-      .join(" / ");
+    const allNumeric = winners.every((value) => Number.isFinite(Number(value)));
+    const allTShirt = winners.every((value) => value in T_SHIRT_RANK);
+    let sortedWinners = [...winners];
+
+    if (allNumeric) {
+      sortedWinners = sortedWinners.sort((left, right) => Number(right) - Number(left));
+    } else if (allTShirt) {
+      sortedWinners = sortedWinners.sort(
+        (left, right) =>
+          T_SHIRT_RANK[right as keyof typeof T_SHIRT_RANK] -
+          T_SHIRT_RANK[left as keyof typeof T_SHIRT_RANK],
+      );
+    } else {
+      sortedWinners = sortedWinners.sort((left, right) => right.localeCompare(left));
+    }
+
+    const tieValues = sortedWinners.slice(0, 2).join(" / ");
 
     return {
       resultType: "tie" as const,

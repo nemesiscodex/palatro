@@ -18,6 +18,7 @@ interface RoomConfigPanelProps {
 const SCALE_OPTIONS: Array<{ label: string; value: ScaleType; desc: string; icon: string }> = [
   { label: "Fibonacci", value: "fibonacci", desc: "1, 2, 3, 5, 8, 13, 21", icon: "\u2665" },
   { label: "Power of Two", value: "powers_of_two", desc: "1, 2, 4, 8, 16, 32", icon: "\u2666" },
+  { label: "T-Shirt", value: "t_shirt", desc: "XS, S, M, L, XL", icon: "\u2663" },
 ];
 
 export default function RoomConfigPanel({

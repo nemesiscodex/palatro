@@ -32,7 +32,7 @@ describe("CreateRoomForm", () => {
     render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
 
     fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "Sprint Beta" } });
-    fireEvent.click(screen.getByRole("button", { name: /Power of Two$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /T-Shirt$/ }));
     fireEvent.click(screen.getByRole("button", { name: /Add password \(optional\)$/ }));
     fireEvent.change(screen.getByPlaceholderText("Enter room password"), { target: { value: "  deck  " } });
     fireEvent.click(screen.getByRole("button", { name: "Open table" }));
@@ -40,7 +40,7 @@ describe("CreateRoomForm", () => {
     await waitFor(() => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Sprint Beta",
-        scaleType: "powers_of_two",
+        scaleType: "t_shirt",
         password: "deck",
         slug: undefined,
       });
