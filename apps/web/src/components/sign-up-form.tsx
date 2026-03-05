@@ -1,6 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { toast } from "sonner";
 import z from "zod";
+import { usePostHog } from "@posthog/react";
 
 import { authClient } from "@/lib/auth-client";
 import { getUserFacingErrorMessage } from "@/lib/errors";
@@ -10,6 +11,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
 export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
+  const posthog = usePostHog();
   const form = useForm({
     defaultValues: {
       email: "",
@@ -25,6 +27,9 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
         },
         {
           onSuccess: () => {
+            posthog.capture("user_signed_up", {
+              method: "email",
+            });
             window.location.assign("/dashboard");
             toast.success("Sign up successful");
           },

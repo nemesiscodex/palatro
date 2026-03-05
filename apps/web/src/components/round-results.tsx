@@ -1,12 +1,35 @@
+import { useEffect } from "react";
+import { usePostHog } from "@posthog/react";
+
 interface RoundResultsProps {
   activeRound: {
+    id?: string;
     roundNumber: number;
     resultType: "most_voted" | "tie" | null;
     resultValue: string | null;
   } | null;
+  roomId?: string;
+  roomSlug?: string;
+  scaleType?: string;
+  votesCount?: number;
 }
 
-export default function RoundResults({ activeRound }: RoundResultsProps) {
+export default function RoundResults({ activeRound, roomId, roomSlug, scaleType, votesCount = 0 }: RoundResultsProps) {
+  const posthog = usePostHog();
+
+  useEffect(() => {
+    if (activeRound && activeRound.resultType) {
+      posthog.capture('round_results_viewed', {
+        round_number: activeRound.roundNumber,
+        votes_count: votesCount,
+        result_type: activeRound.resultType === "most_voted" ? "consensus" : "split_vote",
+        scale_type: scaleType || "unknown",
+        room_id: roomId || "unknown",
+        room_slug: roomSlug || "unknown",
+      });
+    }
+  }, [activeRound, posthog, roomId, roomSlug, scaleType, votesCount]);
+
   if (!activeRound) {
     return null;
   }

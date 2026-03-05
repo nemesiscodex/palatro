@@ -1,5 +1,7 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
+import { useEffect } from "react";
+import { usePostHog } from "@posthog/react";
 
 import LandingShell from "@/components/landing-shell";
 
@@ -8,6 +10,14 @@ export const Route = createFileRoute("/")({
 });
 
 function IndexRouteComponent() {
+  const posthog = usePostHog();
+
+  useEffect(() => {
+    posthog.capture('landing_page_viewed', {
+      is_authenticated: false,
+    });
+  }, [posthog]);
+
   return (
     <>
       <Authenticated>

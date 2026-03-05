@@ -6,6 +6,7 @@ import { resetSharedMocks, toastError, toastSuccess } from "@/test/mocks";
 const routeState = {
   queryValue: undefined as any,
   queryCalls: [] as any[],
+  posthogCapture: vi.fn(),
   mutations: {
     joinAsGuest: vi.fn(),
     joinAsHost: vi.fn(),
@@ -26,6 +27,12 @@ vi.mock("sonner", () => ({
     success: toastSuccess,
     error: toastError,
   },
+}));
+
+vi.mock("@posthog/react", () => ({
+  usePostHog: () => ({
+    capture: routeState.posthogCapture,
+  }),
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -88,6 +95,7 @@ describe("RoomPage", () => {
     for (const mutation of Object.values(routeState.mutations)) {
       mutation.mockReset();
     }
+    routeState.posthogCapture.mockReset();
     resetSharedMocks();
   });
 
@@ -220,6 +228,16 @@ describe("RoomPage", () => {
         guestToken: undefined,
       });
     });
+    expect(routeState.posthogCapture).toHaveBeenCalledWith("vote_cast", {
+      room_id: "room-1",
+      room_slug: "demo-room",
+      round_id: "round-1",
+      round_number: 1,
+      scale_type: "fibonacci",
+      vote_value: "1",
+      had_previous_vote: false,
+      is_owner: false,
+    });
   });
 
   it("shows results and owner controls in the appropriate states", () => {
@@ -259,6 +277,17 @@ describe("RoomPage", () => {
     expect(screen.getByText("Round 1 result")).toBeInTheDocument();
     expect(screen.getByText("Configuration")).toBeInTheDocument();
     expect(screen.queryByText("Only the room owner can manage rounds.")).not.toBeInTheDocument();
+    expect(routeState.posthogCapture).toHaveBeenCalledWith("round_done", {
+      room_id: "room-1",
+      room_slug: "demo-room",
+      round_id: "round-1",
+      round_number: 1,
+      result_type: "most_voted",
+      result_value: "8",
+      scale_type: "fibonacci",
+      votes_count: 0,
+      is_owner: true,
+    });
   });
 
   it("allows guests to leave and clears their stored token", async () => {

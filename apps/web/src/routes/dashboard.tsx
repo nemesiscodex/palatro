@@ -1,7 +1,9 @@
 import { api } from "@palatro/backend/convex/_generated/api";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { Authenticated, AuthLoading, Unauthenticated, useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useEffect } from "react";
 import { toast } from "sonner";
+import { usePostHog } from "@posthog/react";
 
 import CreateRoomForm from "@/components/create-room-form";
 import RoomList from "@/components/room-list";
@@ -22,6 +24,15 @@ export function DashboardPage() {
   const rooms = useQuery(apiAny.rooms.listMine, !isLoading && isAuthenticated ? {} : "skip");
   const createRoom = useMutation(apiAny.rooms.create);
   const deleteRoom = useMutation(apiAny.rooms.remove);
+  const posthog = usePostHog();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      posthog.capture('dashboard_viewed', {
+        rooms_count: (rooms ?? []).length,
+      });
+    }
+  }, [isLoading, isAuthenticated, rooms, posthog]);
 
   return (
     <>

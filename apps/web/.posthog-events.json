@@ -1,0 +1,85 @@
+[
+  {
+    "event_name": "user_signed_up",
+    "description": "Track when a new user creates an account - critical for user acquisition funnel",
+    "file_path": "apps/web/src/components/sign-up-form.tsx",
+    "event_type": "client_side",
+    "properties": {
+      "method": "email"
+    }
+  },
+  {
+    "event_name": "user_signed_in",
+    "description": "Track when an existing user logs in - critical for user retention and engagement",
+    "file_path": "apps/web/src/components/sign-in-form.tsx",
+    "event_type": "client_side",
+    "properties": {
+      "method": "email"
+    }
+  },
+  {
+    "event_name": "landing_page_viewed",
+    "description": "Track landing page views for top of funnel analytics",
+    "file_path": "apps/web/src/routes/index.tsx",
+    "event_type": "client_side",
+    "properties": {
+      "is_authenticated": false
+    }
+  },
+  {
+    "event_name": "dashboard_viewed",
+    "description": "Track dashboard views to measure user engagement and activation",
+    "file_path": "apps/web/src/routes/dashboard.tsx",
+    "event_type": "client_side",
+    "properties": {
+      "rooms_count": "number of rooms user has"
+    }
+  },
+  {
+    "event_name": "round_results_viewed",
+    "description": "Track when voting results are revealed - critical conversion event for core value delivery",
+    "file_path": "apps/web/src/components/round-results.tsx",
+    "event_type": "client_side",
+    "properties": {
+      "round_number": "round number",
+      "votes_count": "number of votes",
+      "result_type": "consensus, majority, or no_consensus",
+      "scale_type": "fibonacci, powers_of_two, or t_shirt"
+    }
+  },
+  {
+    "event_name": "room_url_copied",
+    "description": "Track when users copy room URL - viral sharing metric",
+    "file_path": "apps/web/src/routes/rooms/$slug.tsx",
+    "event_type": "client_side",
+    "properties": {
+      "room_id": "room identifier",
+      "room_slug": "room URL slug",
+      "is_owner": "whether copier is room owner"
+    }
+  },
+  {
+    "event_name": "room_password_failed",
+    "description": "Track failed password attempts - security and UX metric",
+    "file_path": "packages/backend/convex/participants.ts",
+    "event_type": "server_side",
+    "properties": {
+      "room_id": "room identifier",
+      "room_slug": "room URL slug",
+      "is_returning_participant": "whether participant had joined before"
+    }
+  },
+  {
+    "event_name": "vote_changed",
+    "description": "Track when a user changes their vote - indicates decision-making process",
+    "file_path": "packages/backend/convex/rounds.ts",
+    "event_type": "server_side",
+    "properties": {
+      "room_id": "room identifier",
+      "round_id": "round identifier",
+      "participant_kind": "guest or host",
+      "old_value": "previous vote value",
+      "new_value": "new vote value"
+    }
+  }
+]

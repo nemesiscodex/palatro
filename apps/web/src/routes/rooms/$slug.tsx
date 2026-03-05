@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { usePostHog } from "@posthog/react";
 
 import type { ScaleType } from "@palatro/backend/convex/pointingPoker";
 
@@ -32,7 +33,9 @@ export function RoomPage({ slug }: { slug: string }) {
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  const posthog = usePostHog();
   const hostJoinRequested = useRef(false);
+  const trackedDoneRounds = useRef(new Set<string>());
 
   useEffect(() => {
     setGuestToken(readGuestToken(slug));
@@ -92,6 +95,35 @@ export function RoomPage({ slug }: { slug: string }) {
       window.clearInterval(interval);
     };
   }, [guestToken, heartbeat, roomState]);
+
+  useEffect(() => {
+    if (
+      !roomState ||
+      roomState.room.status !== "revealed" ||
+      !roomState.activeRound ||
+      !roomState.activeRound.resultType
+    ) {
+      return;
+    }
+
+    const roundId = String(roomState.activeRound.id);
+    if (trackedDoneRounds.current.has(roundId)) {
+      return;
+    }
+
+    trackedDoneRounds.current.add(roundId);
+    posthog.capture("round_done", {
+      room_id: String(roomState.room.id),
+      room_slug: roomState.room.slug,
+      round_id: roundId,
+      round_number: roomState.activeRound.roundNumber,
+      result_type: roomState.activeRound.resultType,
+      result_value: roomState.activeRound.resultValue,
+      scale_type: roomState.room.scaleType,
+      votes_count: roomState.participants.length,
+      is_owner: roomState.viewer.isOwner,
+    });
+  }, [posthog, roomState]);
 
   if (!storageReady || roomState === undefined) {
     return (
@@ -184,8 +216,12 @@ export function RoomPage({ slug }: { slug: string }) {
                 if (typeof navigator === "undefined" || !navigator.clipboard) {
                   return;
                 }
-
                 void navigator.clipboard.writeText(window.location.href).then(() => {
+                  posthog.capture("room_url_copied", {
+                    room_id: String(roomState.room.id),
+                    room_slug: slug,
+                    is_owner: roomState.viewer.isOwner,
+                  });
                   toast.success("Room URL copied");
                 });
               }}
@@ -281,6 +317,16 @@ export function RoomPage({ slug }: { slug: string }) {
                         value,
                         guestToken: guestToken ?? undefined,
                       });
+                      posthog.capture("vote_cast", {
+                        room_id: String(roomState.room.id),
+                        room_slug: roomState.room.slug,
+                        round_id: String(roomState.activeRound.id),
+                        round_number: roomState.activeRound.roundNumber,
+                        scale_type: roomState.room.scaleType,
+                        vote_value: value,
+                        had_previous_vote: !!roomState.viewer.currentVote,
+                        is_owner: roomState.viewer.isOwner,
+                      });
                     }, "Could not submit vote");
                   }}
                 />
@@ -301,7 +347,13 @@ export function RoomPage({ slug }: { slug: string }) {
 
               {/* Round results */}
               {roomState.room.status === "revealed" ? (
-                <RoundResults activeRound={roomState.activeRound} />
+                <RoundResults 
+                  activeRound={roomState.activeRound}
+                  roomId={String(roomState.room.id)}
+                  roomSlug={roomState.room.slug}
+                  scaleType={roomState.room.scaleType}
+                  votesCount={roomState.participants.length}
+                />
               ) : null}
             </div>
           </CardContent>
