@@ -1,11 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@palatro/env/web", () => ({
-  env: {
-    VITE_CONVEX_SITE_URL: "https://palatro.app/",
-  },
-}));
-
 vi.mock("@tanstack/react-router", () => ({
   HeadContent: () => null,
   Outlet: () => null,
@@ -59,6 +53,10 @@ vi.mock("../components/header", () => ({
   default: () => null,
 }));
 
+vi.mock("@/lib/site-url", () => ({
+  getSiteUrl: () => "https://palatro.nemesiscodex.org",
+}));
+
 import { Route } from "./__root";
 
 describe("root metadata", () => {
@@ -68,11 +66,11 @@ describe("root metadata", () => {
 
     expect(head.links).toContainEqual({
       rel: "canonical",
-      href: "https://palatro.app",
+      href: "https://palatro.nemesiscodex.org",
     });
     expect(meta).toContainEqual({
       property: "og:image",
-      content: "https://palatro.app/banner.png",
+      content: "https://palatro.nemesiscodex.org/banner.png",
     });
     expect(meta).toContainEqual({
       name: "twitter:card",
@@ -80,7 +78,7 @@ describe("root metadata", () => {
     });
     expect(meta).toContainEqual({
       name: "twitter:image",
-      content: "https://palatro.app/banner.png",
+      content: "https://palatro.nemesiscodex.org/banner.png",
     });
   });
 });

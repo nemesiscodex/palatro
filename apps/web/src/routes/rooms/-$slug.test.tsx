@@ -95,6 +95,10 @@ vi.mock("@/hooks/use-app-sound", () => ({
   useAppSound: () => routeState.playSound,
 }));
 
+vi.mock("@/lib/site-url", () => ({
+  getSiteUrl: () => "https://palatro.nemesiscodex.org",
+}));
+
 import { RoomPage, Route } from "./$slug";
 
 describe("RoomPage", () => {
@@ -430,7 +434,15 @@ describe("RoomPage", () => {
     });
     expect(head?.meta).toContainEqual({
       name: "twitter:image",
-      content: "/banner.png",
+      content: "https://palatro.nemesiscodex.org/banner.png",
+    });
+    expect(head?.meta).toContainEqual({
+      property: "og:url",
+      content: "https://palatro.nemesiscodex.org/rooms/demo-room",
+    });
+    expect(head?.links).toContainEqual({
+      rel: "canonical",
+      href: "https://palatro.nemesiscodex.org/rooms/demo-room",
     });
     expect(head?.meta).toContainEqual({
       name: "robots",

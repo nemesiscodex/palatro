@@ -19,13 +19,19 @@ import { bong001Sound } from "@/lib/bong-001";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GENERIC_UNEXPECTED_ERROR_MESSAGE, getUserFacingErrorMessage } from "@/lib/errors";
 import { clearGuestToken, readGuestToken, writeGuestToken } from "@/lib/room-session";
+import { getSiteUrl } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 import { switch002Sound } from "@/lib/switch-002";
 import { switch007Sound } from "@/lib/switch-007";
 
 export const Route = createFileRoute("/rooms/$slug")({
-  head: ({ params }) => ({
-    meta: [
+  head: ({ params }) => {
+    const siteUrl = getSiteUrl();
+    const roomUrl = `${siteUrl}/rooms/${params.slug}`;
+    const socialImageUrl = `${siteUrl}/banner.png`;
+
+    return {
+      meta: [
       {
         title: `Room ${params.slug} - Palatro`,
       },
@@ -47,11 +53,11 @@ export const Route = createFileRoute("/rooms/$slug")({
       },
       {
         property: "og:url",
-        content: `/rooms/${params.slug}`,
+        content: roomUrl,
       },
       {
         property: "og:image",
-        content: "/banner.png",
+        content: socialImageUrl,
       },
       {
         name: "twitter:card",
@@ -67,14 +73,21 @@ export const Route = createFileRoute("/rooms/$slug")({
       },
       {
         name: "twitter:image",
-        content: "/banner.png",
+        content: socialImageUrl,
       },
       {
         name: "robots",
         content: "noindex, nofollow",
       },
-    ],
-  }),
+      ],
+      links: [
+        {
+          rel: "canonical",
+          href: roomUrl,
+        },
+      ],
+    };
+  },
   component: RoomRouteComponent,
 });
 

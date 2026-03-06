@@ -12,12 +12,12 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { createServerFn } from "@tanstack/react-start";
 import { PostHogProvider } from "@posthog/react";
-import { env } from "@palatro/env/web";
 
 import { Toaster } from "@/components/ui/sonner";
 import { SoundSettingsProvider } from "@/components/sound-settings";
 import { authClient } from "@/lib/auth-client";
 import { getToken } from "@/lib/auth-server";
+import { getSiteUrl } from "@/lib/site-url";
 
 import Header from "../components/header";
 import appCss from "../index.css?url";
@@ -33,7 +33,7 @@ interface RouterAppContext {
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => {
-    const siteUrl = env.VITE_CONVEX_SITE_URL.replace(/\/$/, "");
+    const siteUrl = getSiteUrl();
     const socialImageUrl = `${siteUrl}/banner.png`;
 
     return {
