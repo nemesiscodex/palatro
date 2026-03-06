@@ -11,6 +11,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getUserFacingErrorMessage } from "@/lib/errors";
 
 export const Route = createFileRoute("/dashboard")({
+  head: () => ({
+    meta: [
+      {
+        title: "Dashboard - Palatro",
+      },
+      {
+        name: "description",
+        content: "Manage your planning poker rooms and create new tables.",
+      },
+      {
+        name: "robots",
+        content: "noindex, nofollow",
+      },
+    ],
+  }),
   component: RouteComponent,
 });
 

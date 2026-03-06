@@ -12,6 +12,7 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { createServerFn } from "@tanstack/react-start";
 import { PostHogProvider } from "@posthog/react";
+import { env } from "@palatro/env/web";
 
 import { Toaster } from "@/components/ui/sonner";
 import { SoundSettingsProvider } from "@/components/sound-settings";
@@ -31,8 +32,12 @@ interface RouterAppContext {
 }
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
-  head: () => ({
-    meta: [
+  head: () => {
+    const siteUrl = env.VITE_CONVEX_SITE_URL.replace(/\/$/, "");
+    const socialImageUrl = `${siteUrl}/banner.png`;
+
+    return {
+      meta: [
       {
         charSet: "utf-8",
       },
@@ -47,11 +52,55 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         name: "description",
         content: "A smoky planning table for sharp teams. Real-time pointing poker with shareable rooms.",
       },
-    ],
-    links: [
+      {
+        property: "og:type",
+        content: "website",
+      },
+      {
+        property: "og:title",
+        content: "Palatro - Pointing Poker",
+      },
+      {
+        property: "og:description",
+        content: "A smoky planning table for sharp teams. Real-time pointing poker with shareable rooms.",
+      },
+      {
+        property: "og:url",
+        content: siteUrl,
+      },
+      {
+        property: "og:image",
+        content: socialImageUrl,
+      },
+      {
+        property: "og:image:alt",
+        content: "Palatro banner showing planning poker branding.",
+      },
+      {
+        name: "twitter:card",
+        content: "summary_large_image",
+      },
+      {
+        name: "twitter:title",
+        content: "Palatro - Pointing Poker",
+      },
+      {
+        name: "twitter:description",
+        content: "A smoky planning table for sharp teams. Real-time pointing poker with shareable rooms.",
+      },
+      {
+        name: "twitter:image",
+        content: socialImageUrl,
+      },
+      ],
+      links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "canonical",
+        href: siteUrl,
       },
       {
         rel: "icon",
@@ -80,8 +129,9 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         href: "/apple-touch-icon.png",
         sizes: "180x180",
       },
-    ],
-  }),
+      ],
+    };
+  },
 
   component: RootDocument,
   beforeLoad: async (ctx) => {

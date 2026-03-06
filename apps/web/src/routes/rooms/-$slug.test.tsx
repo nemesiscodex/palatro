@@ -37,7 +37,11 @@ vi.mock("@posthog/react", () => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => () => ({ useParams: () => ({ slug: "demo-room" }) }),
+  createFileRoute: (path: string) => (options: any) => ({
+    ...options,
+    id: path,
+    useParams: () => ({ slug: "demo-room" }),
+  }),
 }));
 
 vi.mock("@palatro/backend/convex/_generated/api", () => ({
@@ -91,7 +95,7 @@ vi.mock("@/hooks/use-app-sound", () => ({
   useAppSound: () => routeState.playSound,
 }));
 
-import { RoomPage } from "./$slug";
+import { RoomPage, Route } from "./$slug";
 
 describe("RoomPage", () => {
   beforeEach(() => {
@@ -416,5 +420,21 @@ describe("RoomPage", () => {
     });
 
     expect(routeState.playSound).toHaveBeenCalledTimes(2);
+  });
+
+  it("includes share metadata for room links", () => {
+    const head = Route.head?.({ params: { slug: "demo-room" } } as any);
+    expect(head?.meta).toContainEqual({
+      property: "og:title",
+      content: "Room demo-room - Palatro",
+    });
+    expect(head?.meta).toContainEqual({
+      name: "twitter:image",
+      content: "/banner.png",
+    });
+    expect(head?.meta).toContainEqual({
+      name: "robots",
+      content: "noindex, nofollow",
+    });
   });
 });

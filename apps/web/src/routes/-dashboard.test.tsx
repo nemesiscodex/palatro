@@ -18,7 +18,11 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  createFileRoute: () => () => ({ useParams: () => ({}) }),
+  createFileRoute: (path: string) => (options: any) => ({
+    ...options,
+    id: path,
+    useParams: () => ({}),
+  }),
   Link: MockLink,
   Navigate: MockNavigate,
 }));
@@ -50,7 +54,7 @@ vi.mock("convex/react", () => ({
   },
 }));
 
-import { DashboardPage } from "./dashboard";
+import { DashboardPage, Route } from "./dashboard";
 
 describe("DashboardPage", () => {
   beforeEach(() => {
@@ -150,5 +154,13 @@ describe("DashboardPage", () => {
     render(<DashboardPage />);
 
     expect(screen.getByTestId("navigate")).toHaveAttribute("data-to", "/");
+  });
+
+  it("marks dashboard route as noindex", () => {
+    const head = Route.head?.();
+    expect(head?.meta).toContainEqual({
+      name: "robots",
+      content: "noindex, nofollow",
+    });
   });
 });

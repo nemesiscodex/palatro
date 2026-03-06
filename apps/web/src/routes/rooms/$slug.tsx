@@ -24,6 +24,57 @@ import { switch002Sound } from "@/lib/switch-002";
 import { switch007Sound } from "@/lib/switch-007";
 
 export const Route = createFileRoute("/rooms/$slug")({
+  head: ({ params }) => ({
+    meta: [
+      {
+        title: `Room ${params.slug} - Palatro`,
+      },
+      {
+        name: "description",
+        content: `Join planning poker room ${params.slug} on Palatro.`,
+      },
+      {
+        property: "og:type",
+        content: "website",
+      },
+      {
+        property: "og:title",
+        content: `Room ${params.slug} - Palatro`,
+      },
+      {
+        property: "og:description",
+        content: `Join planning poker room ${params.slug} on Palatro.`,
+      },
+      {
+        property: "og:url",
+        content: `/rooms/${params.slug}`,
+      },
+      {
+        property: "og:image",
+        content: "/banner.png",
+      },
+      {
+        name: "twitter:card",
+        content: "summary_large_image",
+      },
+      {
+        name: "twitter:title",
+        content: `Room ${params.slug} - Palatro`,
+      },
+      {
+        name: "twitter:description",
+        content: `Join planning poker room ${params.slug} on Palatro.`,
+      },
+      {
+        name: "twitter:image",
+        content: "/banner.png",
+      },
+      {
+        name: "robots",
+        content: "noindex, nofollow",
+      },
+    ],
+  }),
   component: RoomRouteComponent,
 });
 

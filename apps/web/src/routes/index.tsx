@@ -9,12 +9,43 @@ export const Route = createFileRoute("/")({
   component: IndexRouteComponent,
 });
 
-function IndexRouteComponent() {
+function getAttributionParams(search: string) {
+  const params = new URLSearchParams(search);
+  const trackedKeys = [
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
+    "gclid",
+    "fbclid",
+  ] as const;
+
+  return trackedKeys.reduce<Record<string, string>>((acc, key) => {
+    const value = params.get(key);
+    if (value) {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+}
+
+export function IndexRouteComponent() {
   const posthog = usePostHog();
 
   useEffect(() => {
+    const attribution =
+      typeof window === "undefined"
+        ? {}
+        : getAttributionParams(window.location.search);
+
+    if (Object.keys(attribution).length > 0) {
+      (posthog as any).register_once?.(attribution);
+    }
+
     posthog.capture('landing_page_viewed', {
       is_authenticated: false,
+      ...attribution,
     });
   }, [posthog]);
 
