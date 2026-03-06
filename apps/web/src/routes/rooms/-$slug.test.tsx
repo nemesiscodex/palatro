@@ -7,6 +7,7 @@ const routeState = {
   queryValue: undefined as any,
   queryCalls: [] as any[],
   posthogCapture: vi.fn(),
+  playSound: vi.fn(),
   mutations: {
     joinAsGuest: vi.fn(),
     joinAsHost: vi.fn(),
@@ -86,6 +87,10 @@ vi.mock("convex/react", () => ({
   },
 }));
 
+vi.mock("@/hooks/use-app-sound", () => ({
+  useAppSound: () => routeState.playSound,
+}));
+
 import { RoomPage } from "./$slug";
 
 describe("RoomPage", () => {
@@ -96,6 +101,7 @@ describe("RoomPage", () => {
       mutation.mockReset();
     }
     routeState.posthogCapture.mockReset();
+    routeState.playSound.mockReset();
     resetSharedMocks();
   });
 
@@ -363,5 +369,52 @@ describe("RoomPage", () => {
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith("Join failed");
     });
+  });
+
+  it("plays config sound after successful scale and password changes", async () => {
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        status: "idle",
+        hasPassword: true,
+      },
+      deck: ["1", "2", "3"],
+      participants: [],
+      activeRound: null,
+      viewer: {
+        isOwner: true,
+        participantId: "host-1",
+        canVote: false,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Dealer",
+        isAuthenticated: true,
+      },
+    };
+    routeState.mutations.updateConfig.mockResolvedValue(null);
+    routeState.mutations.updatePassword.mockResolvedValue({ hasPassword: false });
+
+    render(<RoomPage slug="demo-room" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Power of Two/ }));
+    await waitFor(() => {
+      expect(routeState.mutations.updateConfig).toHaveBeenCalledWith({
+        roomId: "room-1",
+        scaleType: "powers_of_two",
+      });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove password" }));
+    await waitFor(() => {
+      expect(routeState.mutations.updatePassword).toHaveBeenCalledWith({
+        roomId: "room-1",
+        password: undefined,
+      });
+    });
+
+    expect(routeState.playSound).toHaveBeenCalledTimes(2);
   });
 });

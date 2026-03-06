@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import type { ScaleType } from "@palatro/backend/convex/pointingPoker";
 
 import { Button } from "@/components/ui/button";
+import { useAppSound } from "@/hooks/use-app-sound";
 import { Input } from "@/components/ui/input";
+import { select008Sound } from "@/lib/select-008";
 import { cn } from "@/lib/utils";
 
 interface RoomConfigPanelProps {
@@ -27,6 +29,7 @@ export default function RoomConfigPanel({
   onUpdateScale,
   onUpdatePassword,
 }: RoomConfigPanelProps) {
+  const playHoverSound = useAppSound(select008Sound, { volumeMultiplier: 0.1 });
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -52,12 +55,17 @@ export default function RoomConfigPanel({
                 key={option.value}
                 type="button"
                 disabled={disabled}
+                onMouseEnter={() => {
+                  if (!disabled) {
+                    playHoverSound();
+                  }
+                }}
                 onClick={() => {
                   void onUpdateScale(option.value);
                 }}
                 className={cn(
                   "flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all duration-200",
-                  "disabled:pointer-events-none disabled:opacity-40",
+                  "cursor-pointer disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
                   isActive
                     ? "border-primary/25 bg-primary/[0.06] text-foreground"
                     : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.1] hover:bg-white/[0.04]",

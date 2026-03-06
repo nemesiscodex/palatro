@@ -1,13 +1,16 @@
 import { api } from "@palatro/backend/convex/_generated/api";
 import { Link } from "@tanstack/react-router";
 import { useConvexAuth, useQuery } from "convex/react";
+import { Github, Volume2, VolumeX } from "lucide-react";
 
+import { useSoundSettings } from "@/components/sound-settings";
 import UserMenu from "./user-menu";
 
 export default function Header() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const apiAny = api as any;
   const rooms = useQuery(apiAny.rooms.listMine, !isLoading && isAuthenticated ? {} : "skip");
+  const { muted, toggleMuted } = useSoundSettings();
   const links = [{ to: "/dashboard", label: "Dashboard" }] as const;
 
   return (
@@ -49,6 +52,24 @@ export default function Header() {
                 );
               })}
             </nav>
+            <a
+              href="https://github.com/nemesiscodex/palatro"
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label="View Palatro on GitHub"
+              className="rounded-full border border-white/[0.06] bg-white/[0.03] p-2.5 text-muted-foreground transition-all duration-200 hover:-translate-y-px hover:border-primary/25 hover:text-foreground hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
+            >
+              <Github className="h-4 w-4" />
+            </a>
+            <button
+              type="button"
+              onClick={toggleMuted}
+              aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
+              aria-pressed={muted}
+              className="rounded-full border border-white/[0.06] bg-white/[0.03] p-2.5 text-muted-foreground transition-all duration-200 hover:-translate-y-px hover:border-primary/25 hover:text-foreground hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
+            >
+              {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
             {isAuthenticated ? <UserMenu /> : null}
           </div>
         </div>

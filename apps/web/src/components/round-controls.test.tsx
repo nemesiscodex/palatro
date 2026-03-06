@@ -1,6 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+const playRoundControlSound = vi.fn();
+
+vi.mock("@/hooks/use-app-sound", () => ({
+  useAppSound: () => playRoundControlSound,
+}));
+
 import RoundControls from "./round-controls";
 
 describe("RoundControls", () => {
@@ -34,6 +40,7 @@ describe("RoundControls", () => {
   });
 
   it("fires the expected callbacks", () => {
+    playRoundControlSound.mockReset();
     const onStart = vi.fn().mockResolvedValue(undefined);
     const onRestart = vi.fn().mockResolvedValue(undefined);
     const onForceFinish = vi.fn().mockResolvedValue(undefined);
@@ -55,5 +62,32 @@ describe("RoundControls", () => {
     expect(onStart).toHaveBeenCalledTimes(1);
     expect(onRestart).toHaveBeenCalledTimes(1);
     expect(onForceFinish).not.toHaveBeenCalled();
+    expect(playRoundControlSound).toHaveBeenCalledTimes(2);
+  });
+
+  it("plays sound for restart and force reveal during voting", () => {
+    playRoundControlSound.mockReset();
+    const onStart = vi.fn().mockResolvedValue(undefined);
+    const onRestart = vi.fn().mockResolvedValue(undefined);
+    const onForceFinish = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <RoundControls
+        status="voting"
+        canManage
+        onStart={onStart}
+        onRestart={onRestart}
+        onForceFinish={onForceFinish}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Start pointing$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Restart round" }));
+    fireEvent.click(screen.getByRole("button", { name: "Force reveal" }));
+
+    expect(playRoundControlSound).toHaveBeenCalledTimes(2);
+    expect(onStart).not.toHaveBeenCalled();
+    expect(onRestart).toHaveBeenCalledTimes(1);
+    expect(onForceFinish).toHaveBeenCalledTimes(1);
   });
 });

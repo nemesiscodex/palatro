@@ -38,6 +38,11 @@ describe("Header", () => {
     expect(screen.getByAltText("Palatro joker mark")).toHaveAttribute("src", "/brand/palatro-logo.svg");
     expect(screen.getByAltText("Palatro")).toHaveAttribute("src", "/brand/palatro-texto-logo.svg");
     expect(screen.getByText("Pointing Poker")).toBeInTheDocument();
+    expect(screen.getByLabelText("View Palatro on GitHub")).toHaveAttribute(
+      "href",
+      "https://github.com/nemesiscodex/palatro",
+    );
+    expect(screen.getByRole("button", { name: "Mute sound effects" })).toBeInTheDocument();
   });
 
   it("shows room pills for authenticated users", () => {

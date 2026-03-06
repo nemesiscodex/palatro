@@ -3,6 +3,8 @@ import type { VariantProps } from "class-variance-authority";
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva } from "class-variance-authority";
 
+import { useAppSound } from "@/hooks/use-app-sound";
+import { select008Sound } from "@/lib/select-008";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
@@ -41,17 +43,33 @@ const buttonVariants = cva(
   },
 );
 
+interface AppButtonProps extends ButtonPrimitive.Props, VariantProps<typeof buttonVariants> {
+  soundOnHover?: boolean;
+}
+
 function Button({
   className,
   variant = "default",
   size = "default",
+  soundOnHover = true,
+  onMouseEnter,
+  disabled,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: AppButtonProps) {
+  const playHoverSound = useAppSound(select008Sound, { volumeMultiplier: 0.1 });
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
+      disabled={disabled}
+      onMouseEnter={(event) => {
+        if (soundOnHover && !disabled) {
+          playHoverSound();
+        }
+        onMouseEnter?.(event);
+      }}
     />
   );
 }

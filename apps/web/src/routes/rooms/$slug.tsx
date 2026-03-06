@@ -14,10 +14,14 @@ import RoomConfigPanel from "@/components/room-config-panel";
 import RoundControls from "@/components/round-controls";
 import RoundResults from "@/components/round-results";
 import { Button } from "@/components/ui/button";
+import { useAppSound } from "@/hooks/use-app-sound";
+import { bong001Sound } from "@/lib/bong-001";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GENERIC_UNEXPECTED_ERROR_MESSAGE, getUserFacingErrorMessage } from "@/lib/errors";
 import { clearGuestToken, readGuestToken, writeGuestToken } from "@/lib/room-session";
 import { cn } from "@/lib/utils";
+import { switch002Sound } from "@/lib/switch-002";
+import { switch007Sound } from "@/lib/switch-007";
 
 export const Route = createFileRoute("/rooms/$slug")({
   component: RoomRouteComponent,
@@ -36,6 +40,9 @@ export function RoomPage({ slug }: { slug: string }) {
   const posthog = usePostHog();
   const hostJoinRequested = useRef(false);
   const trackedDoneRounds = useRef(new Set<string>());
+  const playBlockedActionSound = useAppSound(bong001Sound, { volumeMultiplier: 0.55 });
+  const playRoundRevealSound = useAppSound(switch002Sound, { volumeMultiplier: 0.6 });
+  const playConfigChangedSound = useAppSound(switch007Sound, { volumeMultiplier: 0.6 });
 
   useEffect(() => {
     setGuestToken(readGuestToken(slug));
@@ -112,6 +119,7 @@ export function RoomPage({ slug }: { slug: string }) {
     }
 
     trackedDoneRounds.current.add(roundId);
+    playRoundRevealSound();
     posthog.capture("round_done", {
       room_id: String(roomState.room.id),
       room_slug: roomState.room.slug,
@@ -123,7 +131,7 @@ export function RoomPage({ slug }: { slug: string }) {
       votes_count: roomState.participants.length,
       is_owner: roomState.viewer.isOwner,
     });
-  }, [posthog, roomState]);
+  }, [playRoundRevealSound, posthog, roomState]);
 
   if (!storageReady || roomState === undefined) {
     return (
@@ -157,6 +165,7 @@ export function RoomPage({ slug }: { slug: string }) {
 
   async function runBusyTask(task: () => Promise<unknown>, errorMessage: string) {
     if (isBusy) {
+      playBlockedActionSound();
       return;
     }
 
@@ -165,6 +174,7 @@ export function RoomPage({ slug }: { slug: string }) {
       await task();
     } catch (error) {
       toast.error(getUserFacingErrorMessage(error, errorMessage));
+      playBlockedActionSound();
     } finally {
       setIsBusy(false);
     }
@@ -450,6 +460,7 @@ export function RoomPage({ slug }: { slug: string }) {
                     roomId: roomState.room.id,
                     scaleType,
                   });
+                  playConfigChangedSound();
                   toast.success("Room configuration updated");
                 }, "Could not update room settings");
               }}
@@ -459,6 +470,7 @@ export function RoomPage({ slug }: { slug: string }) {
                     roomId: roomState.room.id,
                     password,
                   });
+                  playConfigChangedSound();
                   toast.success(result.hasPassword ? "Password set" : "Password removed");
                 }, "Could not update password");
               }}

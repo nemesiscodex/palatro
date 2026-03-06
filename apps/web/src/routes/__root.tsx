@@ -14,6 +14,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { PostHogProvider } from "@posthog/react";
 
 import { Toaster } from "@/components/ui/sonner";
+import { SoundSettingsProvider } from "@/components/sound-settings";
 import { authClient } from "@/lib/auth-client";
 import { getToken } from "@/lib/auth-server";
 
@@ -115,13 +116,15 @@ function RootDocument() {
             <HeadContent />
           </head>
           <body>
-            <div className="grid h-svh grid-rows-[auto_1fr]">
-              <Header />
-              <Outlet />
-            </div>
-            <Toaster richColors />
-            <TanStackRouterDevtools position="bottom-left" />
-            <Scripts />
+            <SoundSettingsProvider>
+              <div className="grid h-svh grid-rows-[auto_1fr]">
+                <Header />
+                <Outlet />
+              </div>
+              <Toaster richColors />
+              <TanStackRouterDevtools position="bottom-left" />
+              <Scripts />
+            </SoundSettingsProvider>
           </body>
         </html>
       </PostHogProvider>

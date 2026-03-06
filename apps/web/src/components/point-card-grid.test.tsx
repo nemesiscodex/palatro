@@ -1,9 +1,29 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import PointCardGrid from "./point-card-grid";
 
+const mockPlayCardPickSound = vi.fn();
+const mockPlayDealCardsSound = vi.fn();
+
+vi.mock("@/hooks/use-app-sound", () => ({
+  useAppSound: vi.fn((sound: { name?: string }) =>
+    sound?.name === "switch-006" ? mockPlayCardPickSound : mockPlayDealCardsSound,
+  ),
+}));
+
 describe("PointCardGrid", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockPlayCardPickSound.mockReset();
+    mockPlayDealCardsSound.mockReset();
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
   it("renders each card in the deck and highlights the selected value", () => {
     const { container } = render(
       <PointCardGrid deck={["1", "2", "3"]} selectedValue="2" onSelect={vi.fn()} />,
@@ -28,5 +48,14 @@ describe("PointCardGrid", () => {
     render(<PointCardGrid deck={["1"]} selectedValue={null} onSelect={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: /1/ })).toHaveClass("cursor-pointer");
+  });
+
+  it("plays the deal sound close to the end of the staggered animation", () => {
+    render(<PointCardGrid deck={["1", "2", "3"]} selectedValue={null} onSelect={vi.fn()} />);
+
+    // For 3 cards: last animation end = 80 + (2 * 55) + 500 = 690ms; sound at 570ms.
+    expect(mockPlayDealCardsSound).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(570);
+    expect(mockPlayDealCardsSound).toHaveBeenCalledTimes(1);
   });
 });

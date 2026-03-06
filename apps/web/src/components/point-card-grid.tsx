@@ -1,3 +1,8 @@
+import { useEffect } from "react";
+
+import { useAppSound } from "@/hooks/use-app-sound";
+import { cardPlace3Sound } from "@/lib/card-place-3";
+import { switch006Sound } from "@/lib/switch-006";
 import { cn } from "@/lib/utils";
 
 interface PointCardGridProps {
@@ -24,6 +29,27 @@ export default function PointCardGrid({
   disabled = false,
   onSelect,
 }: PointCardGridProps) {
+  const playCardPickSound = useAppSound(switch006Sound, { volumeMultiplier: 0.65 });
+  const playDealCardsSound = useAppSound(cardPlace3Sound, { volumeMultiplier: 0.2 });
+
+  useEffect(() => {
+    if (deck.length === 0) {
+      return;
+    }
+
+    // Match the staggered CSS deal animation and fire shortly before it fully settles.
+    const lastCardEndMs = 80 + (deck.length - 1) * 55 + 50;
+    const nearEndDelayMs = Math.max(0, lastCardEndMs - 120);
+
+    const timeoutId = window.setTimeout(() => {
+      playDealCardsSound();
+    }, nearEndDelayMs);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [deck.length, playDealCardsSound]);
+
   return (
     <div className="grid grid-cols-4 gap-3 sm:gap-4">
       {deck.map((value, index) => {
@@ -37,6 +63,7 @@ export default function PointCardGrid({
             type="button"
             disabled={disabled}
             onClick={() => {
+              playCardPickSound();
               void onSelect(value);
             }}
             className={cn(
@@ -45,7 +72,7 @@ export default function PointCardGrid({
               "cursor-pointer disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
               "hover:-translate-y-2 hover:scale-[1.04] active:scale-[0.98]",
               isSelected
-                ? "card-face -translate-y-2 ring-2 ring-amber-500/60 shadow-[0_12px_40px_rgba(218,185,100,0.35),0_4px_12px_rgba(0,0,0,0.2)]"
+                ? "card-face -translate-y-2 ring-2 ring-amber-500/65 brightness-[0.94] shadow-[0_14px_42px_rgba(218,185,100,0.33),0_6px_14px_rgba(0,0,0,0.24)]"
                 : "card-face hover:shadow-[0_14px_36px_rgba(0,0,0,0.4)]",
             )}
             style={{
@@ -55,7 +82,7 @@ export default function PointCardGrid({
             {/* Corner value - top left */}
             <span className={cn(
               "absolute top-2 left-2.5 flex flex-col items-center leading-none",
-              isSelected ? "text-amber-700" : "text-neutral-500",
+              isSelected ? "text-amber-800" : "text-neutral-500",
             )}>
               <span className="text-[0.6rem] font-bold font-sans">{value}</span>
               <span className={cn("text-[0.55rem]", suitColor)}>{suit}</span>
@@ -64,7 +91,7 @@ export default function PointCardGrid({
             {/* Center value */}
             <span className={cn(
               "font-serif text-3xl font-bold transition-colors",
-              isSelected ? "text-amber-800" : "text-neutral-700",
+              isSelected ? "text-amber-900" : "text-neutral-700",
             )}>
               {value}
             </span>
@@ -73,7 +100,7 @@ export default function PointCardGrid({
             <span className={cn(
               "text-sm mt-0.5 transition-opacity",
               suitColor,
-              isSelected ? "opacity-80" : "opacity-40",
+              isSelected ? "opacity-95" : "opacity-40",
             )}>
               {suit}
             </span>
@@ -81,7 +108,7 @@ export default function PointCardGrid({
             {/* Corner value - bottom right */}
             <span className={cn(
               "absolute bottom-2 right-2.5 flex flex-col items-center leading-none rotate-180",
-              isSelected ? "text-amber-700" : "text-neutral-500",
+              isSelected ? "text-amber-800" : "text-neutral-500",
             )}>
               <span className="text-[0.6rem] font-bold font-sans">{value}</span>
               <span className={cn("text-[0.55rem]", suitColor)}>{suit}</span>
@@ -89,7 +116,7 @@ export default function PointCardGrid({
 
             {/* Selection glow */}
             {isSelected && (
-              <div className="absolute inset-0 rounded-xl bg-amber-400/8 pointer-events-none" />
+              <div className="absolute inset-0 rounded-xl bg-black/8 pointer-events-none" />
             )}
           </button>
         );

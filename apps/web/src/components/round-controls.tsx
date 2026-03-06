@@ -1,4 +1,6 @@
 import { Button } from "@/components/ui/button";
+import { useAppSound } from "@/hooks/use-app-sound";
+import { switch006Sound } from "@/lib/switch-006";
 
 interface RoundControlsProps {
   status: "idle" | "voting" | "revealed";
@@ -17,6 +19,8 @@ export default function RoundControls({
   onRestart,
   onForceFinish,
 }: RoundControlsProps) {
+  const playControlActionSound = useAppSound(switch006Sound, { volumeMultiplier: 0.65 });
+
   if (!canManage) {
     return null;
   }
@@ -43,6 +47,7 @@ export default function RoundControls({
         type="button"
         disabled={isBusy || status === "voting"}
         onClick={() => {
+          playControlActionSound();
           void onStart();
         }}
         className="w-full justify-center gap-2"
@@ -55,6 +60,7 @@ export default function RoundControls({
         variant="outline"
         disabled={isBusy}
         onClick={() => {
+          playControlActionSound();
           void onRestart();
         }}
         className="w-full justify-center"
@@ -66,6 +72,7 @@ export default function RoundControls({
         variant="destructive"
         disabled={isBusy || status !== "voting"}
         onClick={() => {
+          playControlActionSound();
           void onForceFinish();
         }}
         className="w-full justify-center"
