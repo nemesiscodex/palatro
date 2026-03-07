@@ -5,6 +5,10 @@
   <img src="apps/web/public/brand/palatro-texto-logo.svg" alt="Palatro wordmark" height="64" />
 </p>
 
+<p align="left">
+  <img src=".github/assets/palatro-screenshot.png" alt="Palatro room screenshot" width="960" />
+</p>
+
 Palatro is a planning poker app for fast estimation sessions.
 
 It is built around one simple loop: a host opens a room, shares one stable URL, guests join without accounts, everyone votes in real time, and the round reveals as soon as the table is ready.
