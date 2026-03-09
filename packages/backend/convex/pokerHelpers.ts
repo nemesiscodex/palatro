@@ -7,9 +7,11 @@ import {
   computeRoundResult,
   getDeck,
   hashGuestToken,
+  isParticipantEligibleToVote,
   isParticipantFresh,
   normalizeDisplayName,
   resolveConsensusConfig,
+  resolveHostVotingEnabled,
 } from "./pointingPoker";
 
 type Ctx = any;
@@ -83,6 +85,18 @@ export async function getFreshParticipants(ctx: Ctx, roomId: Id<"rooms">, now = 
     (participant: Doc<"participants">) =>
       participant.isActive && isParticipantFresh(participant.lastSeenAt, now),
   );
+}
+
+export function canParticipantVoteInRoom(
+  participant: Pick<Doc<"participants">, "kind">,
+  room: Pick<Doc<"rooms">, "hostVotingEnabled">,
+) {
+  return isParticipantEligibleToVote(participant.kind, room.hostVotingEnabled);
+}
+
+export async function getFreshVotingParticipants(ctx: Ctx, room: Doc<"rooms">, now = Date.now()) {
+  const participants = await getFreshParticipants(ctx, room._id, now);
+  return participants.filter((participant: Doc<"participants">) => canParticipantVoteInRoom(participant, room));
 }
 
 export async function findGuestParticipantByToken(
@@ -224,6 +238,7 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
     consensusMode: room.consensusMode,
     consensusThreshold: room.consensusThreshold,
   });
+  const hostVotingEnabled = resolveHostVotingEnabled(room.hostVotingEnabled);
 
   return {
     room: {
@@ -233,6 +248,7 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
       scaleType: room.scaleType,
       consensusMode: consensusConfig.consensusMode,
       consensusThreshold: consensusConfig.consensusThreshold,
+      hostVotingEnabled,
       status: room.status,
       hasPassword: !!room.password,
     },
@@ -261,7 +277,12 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
     viewer: {
       isOwner,
       participantId: viewerParticipant?._id ?? null,
-      canVote: !!viewerParticipant && room.status === "voting" && !!activeRound,
+      participantKind: viewerParticipant?.kind ?? null,
+      canVote:
+        !!viewerParticipant &&
+        room.status === "voting" &&
+        !!activeRound &&
+        canParticipantVoteInRoom(viewerParticipant, room),
       needsJoin: !viewerParticipant,
       currentVote:
         viewerParticipant && activeRound

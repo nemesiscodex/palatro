@@ -10,7 +10,7 @@ import {
   findGuestParticipantByToken,
   findHostParticipantByUserId,
   finishRound,
-  getFreshParticipants,
+  getFreshVotingParticipants,
   getRoomBySlugOrThrow,
   requireAuthSession,
 } from "./pokerHelpers";
@@ -32,7 +32,7 @@ async function finalizeRoundIfReadyAfterSeatChange(ctx: any, roomId: Id<"rooms">
     return;
   }
 
-  const activeParticipants = await getFreshParticipants(ctx, room._id, now);
+  const activeParticipants = await getFreshVotingParticipants(ctx, room, now);
   if (activeParticipants.length === 0) {
     return;
   }

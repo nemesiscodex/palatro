@@ -4,14 +4,17 @@ import {
   ACTIVE_PARTICIPANT_STALE_MS,
   computeRoundResult,
   DEFAULT_CONSENSUS_THRESHOLD,
+  DEFAULT_HOST_VOTING_ENABLED,
   createRoomSlug,
   createSlugCandidate,
   getDeck,
+  isParticipantEligibleToVote,
   isParticipantFresh,
   normalizeDisplayName,
   normalizeConsensusThreshold,
   normalizeRoomSlug,
   resolveConsensusConfig,
+  resolveHostVotingEnabled,
 } from "./pointingPoker";
 
 describe("pointingPoker helpers", () => {
@@ -107,6 +110,16 @@ describe("pointingPoker helpers", () => {
       consensusMode: "plurality",
       consensusThreshold: DEFAULT_CONSENSUS_THRESHOLD,
     });
+  });
+
+  it("defaults legacy rooms to host voting enabled", () => {
+    expect(resolveHostVotingEnabled()).toBe(DEFAULT_HOST_VOTING_ENABLED);
+  });
+
+  it("excludes the host from voting when host voting is disabled", () => {
+    expect(isParticipantEligibleToVote("guest", false)).toBe(true);
+    expect(isParticipantEligibleToVote("host", true)).toBe(true);
+    expect(isParticipantEligibleToVote("host", false)).toBe(false);
   });
 
   it("validates threshold bounds", () => {

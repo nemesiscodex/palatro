@@ -16,6 +16,7 @@ import {
   normalizeConsensusThreshold,
   normalizeDisplayName,
   normalizeRoomSlug,
+  resolveHostVotingEnabled,
 } from "./pointingPoker";
 import {
   assertRoomCreateRateLimit,
@@ -29,6 +30,7 @@ export const create = mutation({
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
     consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
     consensusThreshold: v.number(),
+    hostVotingEnabled: v.optional(v.boolean()),
     password: v.optional(v.string()),
     slug: v.optional(v.string()),
   },
@@ -81,6 +83,7 @@ export const create = mutation({
       allowUnknown: true,
       consensusMode: args.consensusMode,
       consensusThreshold,
+      hostVotingEnabled: resolveHostVotingEnabled(args.hostVotingEnabled),
       password: passwordHash,
       status: "idle",
       createdAt: now,
@@ -137,6 +140,7 @@ export const updateConfig = mutation({
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
     consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
     consensusThreshold: v.number(),
+    hostVotingEnabled: v.boolean(),
   },
   handler: withUnexpectedErrorLogging("rooms.updateConfig", async (ctx, args) => {
     const { room } = await assertRoomOwner(ctx, args.roomId);
@@ -157,6 +161,7 @@ export const updateConfig = mutation({
       scaleType: args.scaleType,
       consensusMode: args.consensusMode,
       consensusThreshold,
+      hostVotingEnabled: resolveHostVotingEnabled(args.hostVotingEnabled),
       updatedAt: Date.now(),
     });
 

@@ -9,6 +9,7 @@ export type ConsensusMode = (typeof CONSENSUS_MODES)[number];
 export const DEFAULT_CONSENSUS_THRESHOLD = 70;
 export const MIN_CONSENSUS_THRESHOLD = 51;
 export const MAX_CONSENSUS_THRESHOLD = 100;
+export const DEFAULT_HOST_VOTING_ENABLED = true;
 
 export const ROOM_STATUSES = ["idle", "voting", "revealed"] as const;
 export type RoomStatus = (typeof ROOM_STATUSES)[number];
@@ -39,6 +40,21 @@ export interface RoundResult {
   resultType: ResultType;
   resultValue: string | null;
   consensusReached: boolean;
+}
+
+export function resolveHostVotingEnabled(value?: boolean) {
+  return value ?? DEFAULT_HOST_VOTING_ENABLED;
+}
+
+export function isParticipantEligibleToVote(
+  kind: "host" | "guest",
+  hostVotingEnabled?: boolean,
+) {
+  if (kind === "guest") {
+    return true;
+  }
+
+  return resolveHostVotingEnabled(hostVotingEnabled);
 }
 
 export function getDeck(scaleType: ScaleType) {

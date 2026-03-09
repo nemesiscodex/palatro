@@ -10,6 +10,7 @@ export default defineSchema({
     allowUnknown: v.boolean(),
     consensusMode: v.optional(v.union(v.literal("plurality"), v.literal("threshold"))),
     consensusThreshold: v.optional(v.number()),
+    hostVotingEnabled: v.optional(v.boolean()),
     password: v.optional(v.string()),
     status: v.union(v.literal("idle"), v.literal("voting"), v.literal("revealed")),
     activeRoundId: v.optional(v.id("rounds")),

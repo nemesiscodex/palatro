@@ -23,6 +23,7 @@ describe("CreateRoomForm", () => {
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         password: undefined,
         slug: undefined,
       });
@@ -45,6 +46,7 @@ describe("CreateRoomForm", () => {
         scaleType: "t_shirt",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         password: "deck",
         slug: undefined,
       });
@@ -67,6 +69,7 @@ describe("CreateRoomForm", () => {
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         password: undefined,
         slug: "Feature Board",
       });
@@ -127,6 +130,7 @@ describe("CreateRoomForm", () => {
         scaleType: "fibonacci",
         consensusMode: "threshold",
         consensusThreshold: 80,
+        hostVotingEnabled: true,
         password: undefined,
         slug: undefined,
       });
@@ -148,6 +152,28 @@ describe("CreateRoomForm", () => {
         scaleType: "fibonacci",
         consensusMode: "threshold",
         consensusThreshold: 51,
+        hostVotingEnabled: true,
+        password: undefined,
+        slug: undefined,
+      });
+    });
+  });
+
+  it("lets the host be configured as host only", async () => {
+    onCreateRoom.mockResolvedValue(undefined);
+    render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
+
+    fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "Sprint Dealer" } });
+    fireEvent.click(screen.getByRole("button", { name: /Host only/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Open table" }));
+
+    await waitFor(() => {
+      expect(onCreateRoom).toHaveBeenCalledWith({
+        name: "Sprint Dealer",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: false,
         password: undefined,
         slug: undefined,
       });

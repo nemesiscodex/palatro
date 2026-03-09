@@ -118,6 +118,12 @@ export function RoomPage({ slug }: { slug: string }) {
     apiAny.rooms.getBySlug,
     storageReady ? { slug, guestToken: guestToken ?? undefined } : "skip",
   );
+  const hostVotingEnabled = roomState?.room.hostVotingEnabled !== false;
+  const eligibleParticipantCount =
+    roomState?.participants.filter((participant) => participant.kind === "guest" || hostVotingEnabled)
+      .length ?? 0;
+  const isHostOnlyViewer =
+    roomState?.viewer.participantKind === "host" && !hostVotingEnabled;
 
   const joinAsGuest = useMutation(apiAny.participants.joinAsGuest);
   const joinAsHost = useMutation(apiAny.participants.joinAsHost);
@@ -195,10 +201,10 @@ export function RoomPage({ slug }: { slug: string }) {
       consensus_mode: roomState.room.consensusMode,
       consensus_threshold: roomState.room.consensusThreshold,
       scale_type: roomState.room.scaleType,
-      votes_count: roomState.participants.length,
+      votes_count: eligibleParticipantCount,
       is_owner: roomState.viewer.isOwner,
     });
-  }, [playRoundRevealSound, posthog, roomState]);
+  }, [eligibleParticipantCount, playRoundRevealSound, posthog, roomState]);
 
   if (!storageReady || roomState === undefined) {
     return (
@@ -417,7 +423,9 @@ export function RoomPage({ slug }: { slug: string }) {
                       ? "Waiting for the dealer to start the round."
                       : roomState.room.status === "revealed"
                         ? "Results stay on the felt until the next round."
-                        : "Waiting for your participant session."}
+                        : isHostOnlyViewer
+                          ? "Hosting this round. Waiting for players to vote."
+                          : "Waiting for your participant session."}
                   </p>
                 </div>
               )}
@@ -431,7 +439,7 @@ export function RoomPage({ slug }: { slug: string }) {
                   scaleType={roomState.room.scaleType}
                   consensusMode={roomState.room.consensusMode}
                   consensusThreshold={roomState.room.consensusThreshold}
-                  votesCount={roomState.participants.length}
+                  votesCount={eligibleParticipantCount}
                 />
               ) : null}
             </div>
@@ -519,15 +527,22 @@ export function RoomPage({ slug }: { slug: string }) {
               scaleType={roomState.room.scaleType as ScaleType}
               consensusMode={roomState.room.consensusMode as ConsensusMode}
               consensusThreshold={roomState.room.consensusThreshold}
+              hostVotingEnabled={hostVotingEnabled}
               hasPassword={roomState.room.hasPassword}
               disabled={!canManage || roomState.room.status === "voting" || isBusy}
-              onUpdateConfig={async ({ scaleType, consensusMode, consensusThreshold }) => {
+              onUpdateConfig={async ({
+                scaleType,
+                consensusMode,
+                consensusThreshold,
+                hostVotingEnabled,
+              }) => {
                 await runBusyTask(async () => {
                   await updateConfig({
                     roomId: roomState.room.id,
                     scaleType,
                     consensusMode,
                     consensusThreshold,
+                    hostVotingEnabled,
                   });
                   playConfigChangedSound();
                   toast.success("Room configuration updated");
