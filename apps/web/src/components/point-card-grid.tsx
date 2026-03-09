@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import { useAppSound } from "@/hooks/use-app-sound";
 import { cardPlace3Sound } from "@/lib/card-place-3";
+import { select008Sound } from "@/lib/select-008";
 import { switch006Sound } from "@/lib/switch-006";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ export default function PointCardGrid({
 }: PointCardGridProps) {
   const playCardPickSound = useAppSound(switch006Sound, { volumeMultiplier: 0.65 });
   const playDealCardsSound = useAppSound(cardPlace3Sound, { volumeMultiplier: 0.2 });
+  const playHoverSound = useAppSound(select008Sound, { volumeMultiplier: 0.12 });
 
   useEffect(() => {
     if (deck.length === 0) {
@@ -62,6 +64,11 @@ export default function PointCardGrid({
             key={value}
             type="button"
             disabled={disabled}
+            onMouseEnter={() => {
+              if (!disabled) {
+                playHoverSound();
+              }
+            }}
             onClick={() => {
               playCardPickSound();
               void onSelect(value);

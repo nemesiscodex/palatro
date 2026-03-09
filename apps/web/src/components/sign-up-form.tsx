@@ -49,20 +49,20 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   });
 
   return (
-    <div className="felt-panel relative mx-auto w-full max-w-md overflow-hidden rounded-[2rem] p-8 shadow-[0_32px_80px_rgba(0,0,0,0.35)]">
+    <div className="felt-panel relative mx-auto w-full max-w-md overflow-hidden rounded-[2rem] p-6 shadow-[0_32px_80px_rgba(0,0,0,0.35)] sm:p-8">
       {/* Decorative corner suits */}
       <span className="absolute top-5 right-6 font-serif text-2xl text-primary/[0.06]">{"\u2660"}</span>
       <span className="absolute bottom-5 left-6 rotate-180 font-serif text-2xl text-primary/[0.06]">{"\u2665"}</span>
 
-      <p className="ornate-label mb-4 text-primary/60">Open the room</p>
-      <h1 className="mb-2 font-serif text-4xl leading-none tracking-tight">
+      <p className="ornate-label mb-3 text-primary/60">Open the room</p>
+      <h1 className="mb-1.5 font-serif text-3xl leading-none tracking-tight lg:text-4xl">
         Become the <span className="text-gold-gradient italic">dealer</span>
       </h1>
-      <p className="text-muted-foreground mb-7 text-sm leading-relaxed">
+      <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
         Create rooms, set the scale, reveal the table.
       </p>
 
-      <div className="gold-rule mb-6" />
+      <div className="gold-rule mb-5" />
 
       <form
         onSubmit={(e) => {

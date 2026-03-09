@@ -2,8 +2,8 @@ import alchemy from "alchemy";
 import { TanStackStart } from "alchemy/cloudflare";
 import { config } from "dotenv";
 
-config({ path: "./.env.prod" });
-config({ path: "../../apps/web/.env.prod" });
+config({ path: "./.env" });
+config({ path: "../../apps/web/.env" });
 
 const app = await alchemy("palatro");
 

@@ -11,13 +11,13 @@ export default function Header() {
   const apiAny = api as any;
   const rooms = useQuery(apiAny.rooms.listMine, !isLoading && isAuthenticated ? {} : "skip");
   const { muted, toggleMuted } = useSoundSettings();
-  const links = [{ to: "/dashboard", label: "Dashboard" }] as const;
+  const links = isAuthenticated ? [{ to: "/dashboard", label: "Dashboard" }] as const : [];
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/6 bg-[rgba(5,16,14,0.72)] backdrop-blur-2xl backdrop-saturate-150">
       <div className="mx-auto flex max-w-7xl flex-col px-5 py-3.5">
         <div className="flex items-center justify-between gap-4">
-          <Link to="/dashboard" className="group flex items-center gap-2.5">
+          <Link to={isAuthenticated ? "/dashboard" : "/"} className="group flex items-center gap-2.5">
             <span className="relative flex h-11 w-11 items-center justify-center transition-all duration-300 group-hover:drop-shadow-[0_0_12px_rgba(34,122,92,0.28)]">
               <img
                 src="/brand/palatro-logo.svg"

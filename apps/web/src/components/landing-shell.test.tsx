@@ -9,14 +9,19 @@ vi.mock("@/components/sign-up-form", () => ({
   default: () => <div data-testid="sign-up-form" />,
 }));
 
+vi.mock("@/components/landing-hero-demo", () => ({
+  default: () => <div data-testid="landing-hero-demo" />,
+}));
+
 import LandingShell from "./landing-shell";
 
 describe("LandingShell", () => {
-  it("renders the branded logos", () => {
+  it("renders the updated hero content", () => {
     render(<LandingShell />);
 
-    expect(screen.getByAltText("Palatro joker mark")).toHaveAttribute("src", "/brand/palatro-logo.svg");
-    expect(screen.getByAltText("Palatro")).toHaveAttribute("src", "/brand/palatro-texto-logo.svg");
-    expect(screen.getByText(/A smoky/i)).toBeInTheDocument();
+    expect(screen.getByText(/Join a table/i)).toBeInTheDocument();
+    expect(screen.getByText(/Reveal!/i)).toBeInTheDocument();
+    expect(screen.getByTestId("landing-hero-demo")).toBeInTheDocument();
+    expect(screen.getByTestId("sign-up-form")).toBeInTheDocument();
   });
 });

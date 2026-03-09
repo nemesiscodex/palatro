@@ -7,6 +7,7 @@ interface ParticipantListProps {
   participants: Array<{
     id: string;
     displayName: string;
+    badge?: string;
     hasVoted: boolean;
     revealedVote: string | null;
     kind: "host" | "guest";
@@ -66,9 +67,16 @@ export default function ParticipantList({
             {/* Name + role */}
             <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {participant.displayName}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {participant.displayName}
+                  </p>
+                  {participant.badge ? (
+                    <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[0.55rem] font-medium uppercase tracking-[0.16em] text-primary">
+                      {participant.badge}
+                    </span>
+                  ) : null}
+                </div>
                 <p className="text-[0.6rem] font-medium uppercase tracking-[0.2em] text-muted-foreground/60">
                   {participant.kind === "host" ? "Dealer" : "Player"}
                 </p>

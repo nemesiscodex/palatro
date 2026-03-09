@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import LandingHeroDemo from "@/components/landing-hero-demo";
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 
@@ -7,65 +8,26 @@ export default function LandingShell() {
   const [showSignIn, setShowSignIn] = useState(false);
 
   return (
-    <main className="mx-auto grid w-full max-w-7xl gap-12 px-5 py-12 lg:grid-cols-[1.15fr_minmax(340px,440px)] lg:items-center">
-      <section className="stagger-rise grid gap-7">
-        <div className="flex items-center gap-4">
-          <img
-            src="/brand/palatro-logo.svg"
-            alt="Palatro joker mark"
-            className="h-12 w-12 object-contain rounded-full border border-primary/20 bg-white/[0.03] p-1.5"
-            loading="eager"
-          />
-          <img
-            src="/brand/palatro-texto-logo.svg"
-            alt="Palatro"
-            className="h-7 w-auto object-contain opacity-90"
-            loading="eager"
-          />
-        </div>
-
-        <h1 className="max-w-2xl font-serif text-[4.2rem] leading-[0.88] text-foreground tracking-tight">
-          A smoky
-          <br />
-          <span className="text-gold-gradient italic">planning table</span>
-          <br />
-          for sharp teams.
+    <main className="mx-auto w-full max-w-6xl px-5 py-6 lg:py-10">
+      <section className="stagger-rise mb-5 lg:mb-8">
+        <h1 className="max-w-3xl font-serif text-[2.9rem] leading-[0.95] text-foreground tracking-[-0.03em] sm:text-[3.5rem] lg:text-[clamp(2.75rem,4vw,4.2rem)]">
+          Join a table. Pick a card. <span className="text-gold-gradient italic">Reveal!</span>
         </h1>
-
-        <p className="text-muted-foreground max-w-lg text-base leading-7">
-          Palatro turns estimation into a shared ritual: join fast, place your card,
-          reveal when the table is ready.
-        </p>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          {([
-            ["\u2660", "?", "Unknown stays on the table"],
-            ["\u2665", "8", "Reveal ties and strong signals"],
-            ["\u2666", "\u221E", "Guests join without friction"],
-          ] as const).map(([suit, mark, text], index) => (
-            <div
-              key={mark}
-              className="felt-panel group relative overflow-hidden rounded-[1.6rem] p-5 stagger-rise"
-              style={{ animationDelay: `${140 + index * 70}ms` }}
-            >
-              <span className="absolute -bottom-2 -right-1 font-serif text-5xl text-primary/[0.04] transition-all duration-500 group-hover:text-primary/[0.08]">
-                {suit}
-              </span>
-
-              <div className="text-gold-gradient font-serif text-4xl font-bold">{mark}</div>
-              <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{text}</p>
-            </div>
-          ))}
-        </div>
       </section>
 
-      <section className="stagger-rise" style={{ animationDelay: "180ms" }}>
-        {showSignIn ? (
-          <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-        ) : (
-          <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
-        )}
-      </section>
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem] lg:gap-8">
+        <section className="stagger-rise" style={{ animationDelay: "80ms" }}>
+          <LandingHeroDemo />
+        </section>
+
+        <section className="stagger-rise lg:sticky lg:top-24" style={{ animationDelay: "180ms" }}>
+          {showSignIn ? (
+            <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
+          ) : (
+            <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
+          )}
+        </section>
+      </div>
     </main>
   );
 }
