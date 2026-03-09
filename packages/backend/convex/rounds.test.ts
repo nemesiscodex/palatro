@@ -1,21 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const authState = vi.hoisted(() => ({
-  user: { _id: "user-1" },
-}));
-
-vi.mock("./auth", () => ({
-  authComponent: {
-    safeGetAuthUser: vi.fn(async () => authState.user),
-  },
-}));
-
 vi.mock("./rateLimit", () => ({
   assertRoundControlRateLimit: vi.fn(async () => {}),
   assertVoteCastRateLimit: vi.fn(async () => {}),
 }));
 
+import { authComponent } from "./auth";
 import { castVote } from "./rounds";
+
+const authState = {
+  user: { _id: "user-1" },
+};
 
 type TableName = "rooms" | "rounds" | "participants" | "votes";
 
@@ -96,6 +91,7 @@ function createCtx(seed: Partial<Record<TableName, any[]>>) {
 describe("rounds.castVote", () => {
   beforeEach(() => {
     authState.user = { _id: "user-1" };
+    vi.spyOn(authComponent, "safeGetAuthUser").mockImplementation(async () => authState.user as any);
   });
 
   it("rejects a host vote when host voting is disabled", async () => {
