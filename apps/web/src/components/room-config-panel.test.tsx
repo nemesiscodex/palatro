@@ -18,6 +18,7 @@ describe("RoomConfigPanel", () => {
         scaleType="fibonacci"
         consensusMode="plurality"
         consensusThreshold={70}
+        hostVotingEnabled={true}
         hasPassword={false}
         onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
@@ -35,6 +36,7 @@ describe("RoomConfigPanel", () => {
         scaleType="fibonacci"
         consensusMode="plurality"
         consensusThreshold={70}
+        hostVotingEnabled={true}
         hasPassword={false}
         onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
@@ -52,6 +54,7 @@ describe("RoomConfigPanel", () => {
         scaleType="fibonacci"
         consensusMode="plurality"
         consensusThreshold={70}
+        hostVotingEnabled={true}
         hasPassword={false}
         onUpdateConfig={onUpdateConfig}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
@@ -65,11 +68,38 @@ describe("RoomConfigPanel", () => {
       scaleType: "fibonacci",
       consensusMode: "threshold",
       consensusThreshold: 70,
+      hostVotingEnabled: true,
     });
     expect(onUpdateConfig).toHaveBeenNthCalledWith(2, {
       scaleType: "fibonacci",
       consensusMode: "threshold",
       consensusThreshold: 60,
+      hostVotingEnabled: true,
+    });
+  });
+
+  it("submits host-only changes through the shared config callback", () => {
+    const onUpdateConfig = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <RoomConfigPanel
+        scaleType="fibonacci"
+        consensusMode="plurality"
+        consensusThreshold={70}
+        hostVotingEnabled={true}
+        hasPassword={false}
+        onUpdateConfig={onUpdateConfig}
+        onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Host only/i }));
+
+    expect(onUpdateConfig).toHaveBeenCalledWith({
+      scaleType: "fibonacci",
+      consensusMode: "plurality",
+      consensusThreshold: 70,
+      hostVotingEnabled: false,
     });
   });
 });

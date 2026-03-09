@@ -7,10 +7,11 @@ import {
   assertRoomOwner,
   assertVoteValueAllowed,
   buildRoomState,
+  canParticipantVoteInRoom,
   findGuestParticipantByToken,
   findHostParticipantByUserId,
   finishRound,
-  getFreshParticipants,
+  getFreshVotingParticipants,
   requireAuthSession,
 } from "./pokerHelpers";
 import {
@@ -134,6 +135,11 @@ export const castVote = mutation({
 
     assertVoteValueAllowed(room.scaleType, args.value);
     const participant = await resolveVotingParticipant(ctx, room, args.participantId, args.guestToken);
+
+    if (!canParticipantVoteInRoom(participant, room)) {
+      throw new ConvexError("Host voting is disabled for this room");
+    }
+
     await assertVoteCastRateLimit(ctx, String(participant._id));
     const now = Date.now();
     const existingVote = await ctx.db
@@ -163,7 +169,7 @@ export const castVote = mutation({
       isActive: true,
     });
 
-    const activeParticipants = await getFreshParticipants(ctx, room._id, now);
+    const activeParticipants = await getFreshVotingParticipants(ctx, room, now);
     const votes = await ctx.db
       .query("votes")
       .withIndex("by_roundId", (q: any) => q.eq("roundId", round._id))

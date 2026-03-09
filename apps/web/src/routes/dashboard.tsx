@@ -98,13 +98,22 @@ export function DashboardPage() {
                   </div>
                 ) : (
                   <CreateRoomForm
-                    onCreateRoom={async ({ name, scaleType, consensusMode, consensusThreshold, password, slug }) => {
+                    onCreateRoom={async ({
+                      name,
+                      scaleType,
+                      consensusMode,
+                      consensusThreshold,
+                      hostVotingEnabled,
+                      password,
+                      slug,
+                    }) => {
                       try {
                         const result = await createRoom({
                           name,
                           scaleType,
                           consensusMode,
                           consensusThreshold,
+                          hostVotingEnabled,
                           password,
                           slug,
                         });

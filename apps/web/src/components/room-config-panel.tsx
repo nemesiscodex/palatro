@@ -18,12 +18,14 @@ interface RoomConfigPanelProps {
   scaleType: ScaleType;
   consensusMode: ConsensusMode;
   consensusThreshold: number;
+  hostVotingEnabled: boolean;
   hasPassword: boolean;
   disabled?: boolean;
   onUpdateConfig: (values: {
     scaleType: ScaleType;
     consensusMode: ConsensusMode;
     consensusThreshold: number;
+    hostVotingEnabled: boolean;
   }) => Promise<void>;
   onUpdatePassword: (password: string | undefined) => Promise<void>;
 }
@@ -38,6 +40,7 @@ export default function RoomConfigPanel({
   scaleType,
   consensusMode,
   consensusThreshold,
+  hostVotingEnabled,
   hasPassword,
   disabled = false,
   onUpdateConfig,
@@ -50,6 +53,7 @@ export default function RoomConfigPanel({
   const [draftScaleType, setDraftScaleType] = useState(scaleType);
   const [draftConsensusMode, setDraftConsensusMode] = useState(consensusMode);
   const [draftConsensusThreshold, setDraftConsensusThreshold] = useState(consensusThreshold);
+  const [draftHostVotingEnabled, setDraftHostVotingEnabled] = useState(hostVotingEnabled);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -71,21 +75,28 @@ export default function RoomConfigPanel({
     setDraftConsensusThreshold(consensusThreshold);
   }, [consensusThreshold]);
 
+  useEffect(() => {
+    setDraftHostVotingEnabled(hostVotingEnabled);
+  }, [hostVotingEnabled]);
+
   async function submitConfig(nextValues: {
     scaleType?: ScaleType;
     consensusMode?: ConsensusMode;
     consensusThreshold?: number;
+    hostVotingEnabled?: boolean;
   }) {
     const payload = {
       scaleType: nextValues.scaleType ?? draftScaleType,
       consensusMode: nextValues.consensusMode ?? draftConsensusMode,
       consensusThreshold: nextValues.consensusThreshold ?? draftConsensusThreshold,
+      hostVotingEnabled: nextValues.hostVotingEnabled ?? draftHostVotingEnabled,
     };
 
     if (
       payload.scaleType === draftScaleType &&
       payload.consensusMode === draftConsensusMode &&
-      payload.consensusThreshold === draftConsensusThreshold
+      payload.consensusThreshold === draftConsensusThreshold &&
+      payload.hostVotingEnabled === draftHostVotingEnabled
     ) {
       return;
     }
@@ -93,6 +104,7 @@ export default function RoomConfigPanel({
     setDraftScaleType(payload.scaleType);
     setDraftConsensusMode(payload.consensusMode);
     setDraftConsensusThreshold(payload.consensusThreshold);
+    setDraftHostVotingEnabled(payload.hostVotingEnabled);
     await onUpdateConfig(payload);
   }
 
@@ -259,6 +271,82 @@ export default function RoomConfigPanel({
             </div>
           </div>
         ) : null}
+      </div>
+
+      <div className="grid gap-3">
+        <div className="gold-rule" />
+        <p className="ornate-label text-muted-foreground/70">Host role</p>
+        <div className="grid gap-2">
+          <button
+            type="button"
+            disabled={disabled}
+            onMouseEnter={() => {
+              if (!disabled) {
+                playHoverSound();
+              }
+            }}
+            onClick={() => {
+              void submitConfig({ hostVotingEnabled: true });
+            }}
+            className={cn(
+              "flex items-start gap-3 rounded-2xl border px-4 py-3 text-left transition-all duration-200",
+              "cursor-pointer disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
+              draftHostVotingEnabled
+                ? "border-primary/25 bg-primary/[0.06] text-foreground"
+                : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.1] hover:bg-white/[0.04]",
+            )}
+          >
+            <span className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm transition-colors",
+              draftHostVotingEnabled
+                ? "bg-primary/20 text-primary"
+                : "bg-white/[0.04] text-muted-foreground/50",
+            )}>
+              {"\u2660"}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Host votes</p>
+              <p className="text-[0.65rem] text-muted-foreground/60">
+                Dealer gets a card and counts toward reveal and consensus.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            disabled={disabled}
+            onMouseEnter={() => {
+              if (!disabled) {
+                playHoverSound();
+              }
+            }}
+            onClick={() => {
+              void submitConfig({ hostVotingEnabled: false });
+            }}
+            className={cn(
+              "flex items-start gap-3 rounded-2xl border px-4 py-3 text-left transition-all duration-200",
+              "cursor-pointer disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
+              !draftHostVotingEnabled
+                ? "border-primary/25 bg-primary/[0.06] text-foreground"
+                : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.1] hover:bg-white/[0.04]",
+            )}
+          >
+            <span className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm transition-colors",
+              !draftHostVotingEnabled
+                ? "bg-primary/20 text-primary"
+                : "bg-white/[0.04] text-muted-foreground/50",
+            )}>
+              {"\u2663"}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Host only</p>
+              <p className="text-[0.65rem] text-muted-foreground/60">
+                Dealer manages the table without voting or affecting consensus.
+              </p>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Room password */}

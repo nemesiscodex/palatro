@@ -98,6 +98,7 @@ describe("DashboardPage", () => {
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         password: undefined,
         slug: undefined,
       });

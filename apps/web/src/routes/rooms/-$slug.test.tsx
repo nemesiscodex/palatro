@@ -131,6 +131,7 @@ describe("RoomPage", () => {
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         status: "idle",
         hasPassword: false,
       },
@@ -140,6 +141,7 @@ describe("RoomPage", () => {
       viewer: {
         isOwner: false,
         participantId: null,
+        participantKind: null,
         canVote: false,
         needsJoin: true,
         currentVote: null,
@@ -175,6 +177,7 @@ describe("RoomPage", () => {
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         status: "idle",
         hasPassword: false,
       },
@@ -184,6 +187,7 @@ describe("RoomPage", () => {
       viewer: {
         isOwner: true,
         participantId: null,
+        participantKind: null,
         canVote: false,
         needsJoin: true,
         currentVote: null,
@@ -209,6 +213,7 @@ describe("RoomPage", () => {
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         status: "voting",
         hasPassword: false,
       },
@@ -224,6 +229,7 @@ describe("RoomPage", () => {
       viewer: {
         isOwner: false,
         participantId: "guest-1",
+        participantKind: "guest",
         canVote: true,
         needsJoin: false,
         currentVote: null,
@@ -269,6 +275,7 @@ describe("RoomPage", () => {
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         status: "revealed",
         hasPassword: false,
       },
@@ -285,6 +292,7 @@ describe("RoomPage", () => {
       viewer: {
         isOwner: true,
         participantId: "host-1",
+        participantKind: "host",
         canVote: false,
         needsJoin: false,
         currentVote: null,
@@ -326,6 +334,7 @@ describe("RoomPage", () => {
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         status: "idle",
         hasPassword: false,
       },
@@ -335,6 +344,7 @@ describe("RoomPage", () => {
       viewer: {
         isOwner: false,
         participantId: "guest-1",
+        participantKind: "guest",
         canVote: false,
         needsJoin: false,
         currentVote: null,
@@ -367,6 +377,7 @@ describe("RoomPage", () => {
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         status: "idle",
         hasPassword: false,
       },
@@ -376,6 +387,7 @@ describe("RoomPage", () => {
       viewer: {
         isOwner: false,
         participantId: null,
+        participantKind: null,
         canVote: false,
         needsJoin: true,
         currentVote: null,
@@ -404,6 +416,7 @@ describe("RoomPage", () => {
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
         status: "idle",
         hasPassword: true,
       },
@@ -413,6 +426,7 @@ describe("RoomPage", () => {
       viewer: {
         isOwner: true,
         participantId: "host-1",
+        participantKind: "host",
         canVote: false,
         needsJoin: false,
         currentVote: null,
@@ -432,6 +446,7 @@ describe("RoomPage", () => {
         scaleType: "powers_of_two",
         consensusMode: "plurality",
         consensusThreshold: 70,
+        hostVotingEnabled: true,
       });
     });
 
@@ -444,6 +459,47 @@ describe("RoomPage", () => {
     });
 
     expect(routeState.playSound).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a waiting message for a host-only dealer during voting", () => {
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: false,
+        status: "voting",
+        hasPassword: false,
+      },
+      deck: ["1", "2", "3"],
+      participants: [
+        { id: "host-1", displayName: "Dealer", hasVoted: false, revealedVote: null, kind: "host" },
+      ],
+      activeRound: {
+        id: "round-1",
+        roundNumber: 1,
+        status: "voting",
+        resultType: null,
+        resultValue: null,
+      },
+      viewer: {
+        isOwner: true,
+        participantId: "host-1",
+        participantKind: "host",
+        canVote: false,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Dealer",
+        isAuthenticated: true,
+      },
+    };
+
+    render(<RoomPage slug="demo-room" />);
+
+    expect(screen.getByText("Hosting this round. Waiting for players to vote.")).toBeInTheDocument();
   });
 
   it("includes share metadata for room links", () => {

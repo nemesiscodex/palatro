@@ -25,6 +25,7 @@ interface CreateRoomFormProps {
     scaleType: ScaleType;
     consensusMode: ConsensusMode;
     consensusThreshold: number;
+    hostVotingEnabled: boolean;
     password?: string;
     slug?: string;
   }) => Promise<void>;
@@ -35,6 +36,7 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
   const [scaleType, setScaleType] = useState<ScaleType>("fibonacci");
   const [consensusMode, setConsensusMode] = useState<ConsensusMode>("plurality");
   const [consensusThreshold, setConsensusThreshold] = useState(DEFAULT_CONSENSUS_THRESHOLD);
+  const [hostVotingEnabled, setHostVotingEnabled] = useState(true);
   const [password, setPassword] = useState("");
   const [slug, setSlug] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -57,6 +59,7 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
             scaleType,
             consensusMode,
             consensusThreshold,
+            hostVotingEnabled,
             password: password.trim() || undefined,
             slug: slug.trim() || undefined,
           });
@@ -64,6 +67,7 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
           setScaleType("fibonacci");
           setConsensusMode("plurality");
           setConsensusThreshold(DEFAULT_CONSENSUS_THRESHOLD);
+          setHostVotingEnabled(true);
           setPassword("");
           setSlug("");
           setShowPassword(false);
@@ -194,6 +198,50 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
             </div>
           </div>
         ) : null}
+      </div>
+
+      <div className="grid gap-3">
+        <p className="gap-2 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-muted-foreground/80 leading-none flex items-center select-none">
+          Host role
+        </p>
+        <div className="grid gap-2">
+          <button
+            type="button"
+            onClick={() => setHostVotingEnabled(true)}
+            className={cn(
+              "flex w-full items-start justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition-all duration-200",
+              hostVotingEnabled
+                ? "border-primary/30 bg-primary/10 text-primary"
+                : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.12] hover:text-foreground",
+            )}
+          >
+            <span className="text-xs text-primary/70">{"\u2660"}</span>
+            <div>
+              <p className="text-[0.72rem] font-medium uppercase tracking-[0.12em]">Host votes</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Dealer gets a card and counts toward the round result.
+              </p>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setHostVotingEnabled(false)}
+            className={cn(
+              "flex w-full items-start justify-start gap-3 rounded-2xl border px-4 py-3 text-left transition-all duration-200",
+              !hostVotingEnabled
+                ? "border-primary/30 bg-primary/10 text-primary"
+                : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.12] hover:text-foreground",
+            )}
+          >
+            <span className="text-xs text-primary/70">{"\u2663"}</span>
+            <div>
+              <p className="text-[0.72rem] font-medium uppercase tracking-[0.12em]">Host only</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Dealer manages the room without voting or affecting consensus.
+              </p>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Optional password */}
