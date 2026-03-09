@@ -9,6 +9,7 @@ import {
   hashGuestToken,
   isParticipantFresh,
   normalizeDisplayName,
+  resolveConsensusConfig,
 } from "./pointingPoker";
 
 type Ctx = any;
@@ -160,7 +161,14 @@ export async function finishRound(
     .withIndex("by_roundId", (q: any) => q.eq("roundId", round._id))
     .collect();
 
-  const { resultType, resultValue } = computeRoundResult(votes.map((vote: Doc<"votes">) => vote.value));
+  const consensusConfig = resolveConsensusConfig({
+    consensusMode: room.consensusMode,
+    consensusThreshold: room.consensusThreshold,
+  });
+  const { resultType, resultValue, consensusReached } = computeRoundResult(
+    votes.map((vote: Doc<"votes">) => vote.value),
+    consensusConfig,
+  );
   const endedAt = Date.now();
 
   await ctx.db.patch(round._id, {
@@ -169,6 +177,7 @@ export async function finishRound(
     endedReason,
     resultType,
     resultValue,
+    consensusReached,
   });
 
   await ctx.db.patch(room._id, {
@@ -180,6 +189,7 @@ export async function finishRound(
   return {
     resultType,
     resultValue,
+    consensusReached,
   };
 }
 
@@ -210,6 +220,10 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
   const knownParticipant = hostParticipant ?? guestParticipant;
   const viewerParticipant = knownParticipant?.isActive ? knownParticipant : null;
   const isOwner = !!userId && room.ownerUserId === userId;
+  const consensusConfig = resolveConsensusConfig({
+    consensusMode: room.consensusMode,
+    consensusThreshold: room.consensusThreshold,
+  });
 
   return {
     room: {
@@ -217,6 +231,8 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
       name: room.name,
       slug: room.slug,
       scaleType: room.scaleType,
+      consensusMode: consensusConfig.consensusMode,
+      consensusThreshold: consensusConfig.consensusThreshold,
       status: room.status,
       hasPassword: !!room.password,
     },
@@ -239,6 +255,7 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
           status: activeRound.status,
           resultType: activeRound.resultType,
           resultValue: activeRound.resultValue,
+          consensusReached: activeRound.consensusReached ?? activeRound.resultType === "most_voted",
         }
       : null,
     viewer: {

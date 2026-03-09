@@ -3,12 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   ACTIVE_PARTICIPANT_STALE_MS,
   computeRoundResult,
+  DEFAULT_CONSENSUS_THRESHOLD,
   createRoomSlug,
   createSlugCandidate,
   getDeck,
   isParticipantFresh,
   normalizeDisplayName,
+  normalizeConsensusThreshold,
   normalizeRoomSlug,
+  resolveConsensusConfig,
 } from "./pointingPoker";
 
 describe("pointingPoker helpers", () => {
@@ -51,6 +54,7 @@ describe("pointingPoker helpers", () => {
     expect(computeRoundResult(["?", "8", "8", "5"])).toEqual({
       resultType: "most_voted",
       resultValue: "8",
+      consensusReached: true,
     });
   });
 
@@ -58,14 +62,57 @@ describe("pointingPoker helpers", () => {
     expect(computeRoundResult(["3", "8", "3", "8", "1"])).toEqual({
       resultType: "tie",
       resultValue: "8 / 3",
+      consensusReached: false,
     });
     expect(computeRoundResult(["M", "XL", "M", "XL"])).toEqual({
       resultType: "tie",
       resultValue: "XL / M",
+      consensusReached: false,
     });
     expect(computeRoundResult(["?", "?"])).toEqual({
       resultType: "tie",
       resultValue: null,
+      consensusReached: false,
     });
+  });
+
+  it("does not mark a threshold result as consensus when the top vote misses the configured percentage", () => {
+    expect(
+      computeRoundResult(["8", "8", "5", "3"], {
+        consensusMode: "threshold",
+        consensusThreshold: 70,
+      }),
+    ).toEqual({
+      resultType: "most_voted",
+      resultValue: "8",
+      consensusReached: false,
+    });
+  });
+
+  it("treats 100 percent threshold as unanimous consensus", () => {
+    expect(
+      computeRoundResult(["?", "5", "5"], {
+        consensusMode: "threshold",
+        consensusThreshold: 100,
+      }),
+    ).toEqual({
+      resultType: "most_voted",
+      resultValue: "5",
+      consensusReached: true,
+    });
+  });
+
+  it("resolves legacy rooms to plurality with the default threshold", () => {
+    expect(resolveConsensusConfig()).toEqual({
+      consensusMode: "plurality",
+      consensusThreshold: DEFAULT_CONSENSUS_THRESHOLD,
+    });
+  });
+
+  it("validates threshold bounds", () => {
+    expect(normalizeConsensusThreshold(51)).toBe(51);
+    expect(normalizeConsensusThreshold(100)).toBe(100);
+    expect(() => normalizeConsensusThreshold(50)).toThrow();
+    expect(() => normalizeConsensusThreshold(101)).toThrow();
   });
 });

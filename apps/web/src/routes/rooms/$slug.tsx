@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { usePostHog } from "@posthog/react";
 
-import type { ScaleType } from "@palatro/backend/convex/pointingPoker";
+import type { ConsensusMode, ScaleType } from "@palatro/backend/convex/pointingPoker";
 
 import JoinRoomForm from "@/components/join-room-form";
 import ParticipantList from "@/components/participant-list";
@@ -191,6 +191,9 @@ export function RoomPage({ slug }: { slug: string }) {
       round_number: roomState.activeRound.roundNumber,
       result_type: roomState.activeRound.resultType,
       result_value: roomState.activeRound.resultValue,
+      consensus_reached: roomState.activeRound.consensusReached,
+      consensus_mode: roomState.room.consensusMode,
+      consensus_threshold: roomState.room.consensusThreshold,
       scale_type: roomState.room.scaleType,
       votes_count: roomState.participants.length,
       is_owner: roomState.viewer.isOwner,
@@ -426,6 +429,8 @@ export function RoomPage({ slug }: { slug: string }) {
                   roomId={String(roomState.room.id)}
                   roomSlug={roomState.room.slug}
                   scaleType={roomState.room.scaleType}
+                  consensusMode={roomState.room.consensusMode}
+                  consensusThreshold={roomState.room.consensusThreshold}
                   votesCount={roomState.participants.length}
                 />
               ) : null}
@@ -512,17 +517,17 @@ export function RoomPage({ slug }: { slug: string }) {
           <CardContent>
             <RoomConfigPanel
               scaleType={roomState.room.scaleType as ScaleType}
+              consensusMode={roomState.room.consensusMode as ConsensusMode}
+              consensusThreshold={roomState.room.consensusThreshold}
               hasPassword={roomState.room.hasPassword}
               disabled={!canManage || roomState.room.status === "voting" || isBusy}
-              onUpdateScale={async (scaleType) => {
-                if (scaleType === roomState.room.scaleType) {
-                  return;
-                }
-
+              onUpdateConfig={async ({ scaleType, consensusMode, consensusThreshold }) => {
                 await runBusyTask(async () => {
                   await updateConfig({
                     roomId: roomState.room.id,
                     scaleType,
+                    consensusMode,
+                    consensusThreshold,
                   });
                   playConfigChangedSound();
                   toast.success("Room configuration updated");

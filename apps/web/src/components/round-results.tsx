@@ -1,41 +1,64 @@
 import { useEffect } from "react";
 import { usePostHog } from "@posthog/react";
 
+import type { ConsensusMode } from "@palatro/backend/convex/pointingPoker";
+
 interface RoundResultsProps {
   activeRound: {
     id?: string;
     roundNumber: number;
     resultType: "most_voted" | "tie" | null;
     resultValue: string | null;
+    consensusReached?: boolean;
   } | null;
   roomId?: string;
   roomSlug?: string;
   scaleType?: string;
+  consensusMode?: ConsensusMode;
+  consensusThreshold?: number;
   votesCount?: number;
 }
 
-export default function RoundResults({ activeRound, roomId, roomSlug, scaleType, votesCount = 0 }: RoundResultsProps) {
+export default function RoundResults({
+  activeRound,
+  roomId,
+  roomSlug,
+  scaleType,
+  consensusMode,
+  consensusThreshold,
+  votesCount = 0,
+}: RoundResultsProps) {
   const posthog = usePostHog();
+  const consensusReached = !!activeRound?.consensusReached;
+  const isTie = activeRound?.resultType === "tie";
+  const isMostVoted = activeRound?.resultType === "most_voted";
+  const resultLabel = consensusReached
+    ? consensusMode === "threshold"
+      ? "consensus"
+      : "most voted"
+    : isTie
+      ? "split vote"
+      : "no consensus";
 
   useEffect(() => {
     if (activeRound && activeRound.resultType) {
-      posthog.capture('round_results_viewed', {
+      posthog.capture("round_results_viewed", {
         round_number: activeRound.roundNumber,
         votes_count: votesCount,
-        result_type: activeRound.resultType === "most_voted" ? "consensus" : "split_vote",
+        result_type: consensusReached ? "consensus" : isTie ? "split_vote" : "most_voted",
         scale_type: scaleType || "unknown",
         room_id: roomId || "unknown",
         room_slug: roomSlug || "unknown",
+        consensus_mode: consensusMode || "plurality",
+        consensus_threshold: consensusThreshold,
+        consensus_reached: consensusReached,
       });
     }
-  }, [activeRound, posthog, roomId, roomSlug, scaleType, votesCount]);
+  }, [activeRound, consensusMode, consensusReached, consensusThreshold, isTie, posthog, roomId, roomSlug, scaleType, votesCount]);
 
   if (!activeRound) {
     return null;
   }
-
-  const isTie = activeRound.resultType === "tie";
-  const isMostVoted = activeRound.resultType === "most_voted";
 
   return (
     <div
@@ -71,7 +94,7 @@ export default function RoundResults({ activeRound, roomId, roomSlug, scaleType,
               {activeRound.resultValue}
             </span>
             <span className="mb-1 text-sm text-muted-foreground">
-              consensus
+              {resultLabel}
             </span>
           </>
         ) : isTie ? (
@@ -85,7 +108,7 @@ export default function RoundResults({ activeRound, roomId, roomSlug, scaleType,
               {activeRound.resultValue ? activeRound.resultValue : "Tie"}
             </span>
             <span className="mb-1 text-sm text-muted-foreground">
-              split vote
+              {resultLabel}
             </span>
           </>
         ) : (
@@ -94,6 +117,14 @@ export default function RoundResults({ activeRound, roomId, roomSlug, scaleType,
           </span>
         )}
       </div>
+
+      {consensusMode === "threshold" ? (
+        <p className="mt-3 text-xs text-muted-foreground/70">
+          {consensusReached
+            ? `${consensusThreshold}% threshold reached`
+            : `${consensusThreshold}% threshold required`}
+        </p>
+      ) : null}
 
       {/* Decorative gold rule */}
       <div className="gold-rule mt-4" />

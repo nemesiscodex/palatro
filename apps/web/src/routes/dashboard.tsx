@@ -98,9 +98,16 @@ export function DashboardPage() {
                   </div>
                 ) : (
                   <CreateRoomForm
-                    onCreateRoom={async ({ name, scaleType, password, slug }) => {
+                    onCreateRoom={async ({ name, scaleType, consensusMode, consensusThreshold, password, slug }) => {
                       try {
-                        const result = await createRoom({ name, scaleType, password, slug });
+                        const result = await createRoom({
+                          name,
+                          scaleType,
+                          consensusMode,
+                          consensusThreshold,
+                          password,
+                          slug,
+                        });
                         toast.success("Room created");
                         window.location.assign(`/rooms/${result.slug}`);
                       } catch (error) {

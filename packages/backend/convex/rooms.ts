@@ -11,7 +11,12 @@ import {
   getRoomBySlugOrThrow,
   requireAuthSession,
 } from "./pokerHelpers";
-import { createRoomSlug, normalizeDisplayName, normalizeRoomSlug } from "./pointingPoker";
+import {
+  createRoomSlug,
+  normalizeConsensusThreshold,
+  normalizeDisplayName,
+  normalizeRoomSlug,
+} from "./pointingPoker";
 import {
   assertRoomCreateRateLimit,
   assertRoomDeleteRateLimit,
@@ -22,6 +27,8 @@ export const create = mutation({
   args: {
     name: v.string(),
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
+    consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
+    consensusThreshold: v.number(),
     password: v.optional(v.string()),
     slug: v.optional(v.string()),
   },
@@ -58,6 +65,12 @@ export const create = mutation({
 
     const password = args.password?.trim() || undefined;
     const passwordHash = password ? await hashPassword(password) : undefined;
+    let consensusThreshold: number;
+    try {
+      consensusThreshold = normalizeConsensusThreshold(args.consensusThreshold);
+    } catch {
+      throw new ConvexError("Consensus threshold must be between 51 and 100");
+    }
 
     const now = Date.now();
     const roomId = await ctx.db.insert("rooms", {
@@ -66,6 +79,8 @@ export const create = mutation({
       slug,
       scaleType: args.scaleType,
       allowUnknown: true,
+      consensusMode: args.consensusMode,
+      consensusThreshold,
       password: passwordHash,
       status: "idle",
       createdAt: now,
@@ -120,6 +135,8 @@ export const updateConfig = mutation({
   args: {
     roomId: v.id("rooms"),
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
+    consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
+    consensusThreshold: v.number(),
   },
   handler: withUnexpectedErrorLogging("rooms.updateConfig", async (ctx, args) => {
     const { room } = await assertRoomOwner(ctx, args.roomId);
@@ -129,8 +146,17 @@ export const updateConfig = mutation({
       throw new ConvexError("Cannot change room settings during an active round");
     }
 
+    let consensusThreshold: number;
+    try {
+      consensusThreshold = normalizeConsensusThreshold(args.consensusThreshold);
+    } catch {
+      throw new ConvexError("Consensus threshold must be between 51 and 100");
+    }
+
     await ctx.db.patch(room._id, {
       scaleType: args.scaleType,
+      consensusMode: args.consensusMode,
+      consensusThreshold,
       updatedAt: Date.now(),
     });
 
