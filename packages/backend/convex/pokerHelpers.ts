@@ -95,13 +95,13 @@ export function canParticipantVoteInRoom(
 }
 
 export function filterVotesForRoom<
-  TVote extends Pick<Doc<"votes">, "participantId">,
+  TVotes extends ReadonlyArray<Pick<Doc<"votes">, "participantId">>,
   TParticipant extends Pick<Doc<"participants">, "_id" | "kind">,
 >(
-  votes: TVote[],
+  votes: TVotes,
   participants: TParticipant[],
   room: Pick<Doc<"rooms">, "hostVotingEnabled">,
-) {
+): Array<TVotes[number]> {
   const participantsById = new Map(
     participants.map((participant) => [String(participant._id), participant] as const),
   );

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
+import type { Doc } from "./_generated/dataModel";
 import { filterVotesForRoom } from "./pokerHelpers";
 
 describe("pokerHelpers", () => {
@@ -29,5 +30,15 @@ describe("pokerHelpers", () => {
     ] as any;
 
     expect(filterVotesForRoom(votes, participants, { hostVotingEnabled: true } as any)).toEqual(votes);
+  });
+
+  it("preserves the full vote document type for downstream consumers", () => {
+    const votes = [] as Doc<"votes">[];
+    const participants = [] as Pick<Doc<"participants">, "_id" | "kind">[];
+    const filteredVotes = filterVotesForRoom(votes, participants, {
+      hostVotingEnabled: true,
+    } as Pick<Doc<"rooms">, "hostVotingEnabled">);
+
+    expectTypeOf(filteredVotes).toEqualTypeOf<Doc<"votes">[]>();
   });
 });
