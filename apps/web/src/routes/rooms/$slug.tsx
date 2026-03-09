@@ -119,9 +119,7 @@ export function RoomPage({ slug }: { slug: string }) {
     storageReady ? { slug, guestToken: guestToken ?? undefined } : "skip",
   );
   const hostVotingEnabled = roomState?.room.hostVotingEnabled !== false;
-  const eligibleParticipantCount =
-    roomState?.participants.filter((participant) => participant.kind === "guest" || hostVotingEnabled)
-      .length ?? 0;
+  const eligibleParticipantCount = roomState?.eligibleParticipantCount ?? 0;
   const isHostOnlyViewer =
     roomState?.viewer.participantKind === "host" && !hostVotingEnabled;
 

@@ -94,6 +94,24 @@ export function canParticipantVoteInRoom(
   return isParticipantEligibleToVote(participant.kind, room.hostVotingEnabled);
 }
 
+export function filterVotesForRoom<
+  TVote extends Pick<Doc<"votes">, "participantId">,
+  TParticipant extends Pick<Doc<"participants">, "_id" | "kind">,
+>(
+  votes: TVote[],
+  participants: TParticipant[],
+  room: Pick<Doc<"rooms">, "hostVotingEnabled">,
+) {
+  const participantsById = new Map(
+    participants.map((participant) => [String(participant._id), participant] as const),
+  );
+
+  return votes.filter((vote) => {
+    const participant = participantsById.get(String(vote.participantId));
+    return participant ? canParticipantVoteInRoom(participant, room) : false;
+  });
+}
+
 export async function getFreshVotingParticipants(ctx: Ctx, room: Doc<"rooms">, now = Date.now()) {
   const participants = await getFreshParticipants(ctx, room._id, now);
   return participants.filter((participant: Doc<"participants">) => canParticipantVoteInRoom(participant, room));
@@ -174,13 +192,18 @@ export async function finishRound(
     .query("votes")
     .withIndex("by_roundId", (q: any) => q.eq("roundId", round._id))
     .collect();
+  const participants = await ctx.db
+    .query("participants")
+    .withIndex("by_roomId", (q: any) => q.eq("roomId", room._id))
+    .collect();
+  const eligibleVotes = filterVotesForRoom(votes, participants, room);
 
   const consensusConfig = resolveConsensusConfig({
     consensusMode: room.consensusMode,
     consensusThreshold: room.consensusThreshold,
   });
   const { resultType, resultValue, consensusReached } = computeRoundResult(
-    votes.map((vote: Doc<"votes">) => vote.value),
+    eligibleVotes.map((vote: Doc<"votes">) => vote.value),
     consensusConfig,
   );
   const endedAt = Date.now();
@@ -222,9 +245,10 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
           .withIndex("by_roundId", (q: any) => q.eq("roundId", activeRound._id))
           .collect()
       : [];
+  const eligibleRoundVotes = filterVotesForRoom(roundVotes, participants, room);
 
   const votesByParticipantId = new Map<Id<"participants">, Doc<"votes">>(
-    roundVotes.map((vote: Doc<"votes">) => [vote.participantId, vote]),
+    eligibleRoundVotes.map((vote: Doc<"votes">) => [vote.participantId, vote]),
   );
   const { authUser, userId } = await getOptionalAuthSession(ctx);
   const hostParticipant = userId ? await findHostParticipantByUserId(ctx, room._id, userId) : null;
@@ -252,6 +276,9 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
       status: room.status,
       hasPassword: !!room.password,
     },
+    eligibleParticipantCount: participants.filter((participant: Doc<"participants">) =>
+      canParticipantVoteInRoom(participant, room),
+    ).length,
     deck: getDeck(room.scaleType),
     participants: participants.map((participant: Doc<"participants">) => {
       const vote = activeRound ? votesByParticipantId.get(participant._id) : null;

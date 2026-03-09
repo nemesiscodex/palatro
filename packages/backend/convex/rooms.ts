@@ -140,7 +140,7 @@ export const updateConfig = mutation({
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
     consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
     consensusThreshold: v.number(),
-    hostVotingEnabled: v.boolean(),
+    hostVotingEnabled: v.optional(v.boolean()),
   },
   handler: withUnexpectedErrorLogging("rooms.updateConfig", async (ctx, args) => {
     const { room } = await assertRoomOwner(ctx, args.roomId);
@@ -156,12 +156,16 @@ export const updateConfig = mutation({
     } catch {
       throw new ConvexError("Consensus threshold must be between 51 and 100");
     }
+    const finalHostVotingEnabled =
+      args.hostVotingEnabled === undefined
+        ? resolveHostVotingEnabled(room.hostVotingEnabled)
+        : resolveHostVotingEnabled(args.hostVotingEnabled);
 
     await ctx.db.patch(room._id, {
       scaleType: args.scaleType,
       consensusMode: args.consensusMode,
       consensusThreshold,
-      hostVotingEnabled: resolveHostVotingEnabled(args.hostVotingEnabled),
+      hostVotingEnabled: finalHostVotingEnabled,
       updatedAt: Date.now(),
     });
 
