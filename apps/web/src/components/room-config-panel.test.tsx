@@ -16,8 +16,10 @@ describe("RoomConfigPanel", () => {
     render(
       <RoomConfigPanel
         scaleType="fibonacci"
+        consensusMode="plurality"
+        consensusThreshold={70}
         hasPassword={false}
-        onUpdateScale={vi.fn().mockResolvedValue(undefined)}
+        onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
       />,
     );
@@ -31,13 +33,43 @@ describe("RoomConfigPanel", () => {
     render(
       <RoomConfigPanel
         scaleType="fibonacci"
+        consensusMode="plurality"
+        consensusThreshold={70}
         hasPassword={false}
-        onUpdateScale={vi.fn().mockResolvedValue(undefined)}
+        onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
       />,
     );
 
     expect(screen.getByRole("button", { name: /Power of Two/i })).toHaveClass("cursor-pointer");
   });
-});
 
+  it("submits threshold changes through the shared config callback", async () => {
+    const onUpdateConfig = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <RoomConfigPanel
+        scaleType="fibonacci"
+        consensusMode="plurality"
+        consensusThreshold={70}
+        hasPassword={false}
+        onUpdateConfig={onUpdateConfig}
+        onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Consensus threshold/i }));
+    fireEvent.change(screen.getByLabelText("Consensus threshold"), { target: { value: "1" } });
+
+    expect(onUpdateConfig).toHaveBeenNthCalledWith(1, {
+      scaleType: "fibonacci",
+      consensusMode: "threshold",
+      consensusThreshold: 70,
+    });
+    expect(onUpdateConfig).toHaveBeenNthCalledWith(2, {
+      scaleType: "fibonacci",
+      consensusMode: "threshold",
+      consensusThreshold: 60,
+    });
+  });
+});

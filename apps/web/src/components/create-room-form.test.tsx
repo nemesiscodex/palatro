@@ -21,6 +21,8 @@ describe("CreateRoomForm", () => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Sprint Alpha",
         scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
         password: undefined,
         slug: undefined,
       });
@@ -41,6 +43,8 @@ describe("CreateRoomForm", () => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Sprint Beta",
         scaleType: "t_shirt",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
         password: "deck",
         slug: undefined,
       });
@@ -61,6 +65,8 @@ describe("CreateRoomForm", () => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Sprint Epsilon",
         scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
         password: undefined,
         slug: "Feature Board",
       });
@@ -103,6 +109,48 @@ describe("CreateRoomForm", () => {
     resolveSubmit?.();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Open table" })).toBeEnabled();
+    });
+  });
+
+  it("submits a preset threshold when threshold mode is selected", async () => {
+    onCreateRoom.mockResolvedValue(undefined);
+    render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
+
+    fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "Sprint Theta" } });
+    fireEvent.click(screen.getByRole("button", { name: /Consensus threshold/i }));
+    fireEvent.change(screen.getByLabelText("Consensus threshold"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Open table" }));
+
+    await waitFor(() => {
+      expect(onCreateRoom).toHaveBeenCalledWith({
+        name: "Sprint Theta",
+        scaleType: "fibonacci",
+        consensusMode: "threshold",
+        consensusThreshold: 80,
+        password: undefined,
+        slug: undefined,
+      });
+    });
+  });
+
+  it("submits the lowest fixed threshold value", async () => {
+    onCreateRoom.mockResolvedValue(undefined);
+    render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
+
+    fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "Sprint Lambda" } });
+    fireEvent.click(screen.getByRole("button", { name: /Consensus threshold/i }));
+    fireEvent.change(screen.getByLabelText("Consensus threshold"), { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: "Open table" }));
+
+    await waitFor(() => {
+      expect(onCreateRoom).toHaveBeenCalledWith({
+        name: "Sprint Lambda",
+        scaleType: "fibonacci",
+        consensusMode: "threshold",
+        consensusThreshold: 51,
+        password: undefined,
+        slug: undefined,
+      });
     });
   });
 });

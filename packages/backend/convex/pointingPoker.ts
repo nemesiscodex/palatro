@@ -3,6 +3,13 @@ export const ACTIVE_PARTICIPANT_STALE_MS = 2 * 60 * 1000;
 export const SCALE_TYPES = ["fibonacci", "powers_of_two", "t_shirt"] as const;
 export type ScaleType = (typeof SCALE_TYPES)[number];
 
+export const CONSENSUS_MODES = ["plurality", "threshold"] as const;
+export type ConsensusMode = (typeof CONSENSUS_MODES)[number];
+
+export const DEFAULT_CONSENSUS_THRESHOLD = 70;
+export const MIN_CONSENSUS_THRESHOLD = 51;
+export const MAX_CONSENSUS_THRESHOLD = 100;
+
 export const ROOM_STATUSES = ["idle", "voting", "revealed"] as const;
 export type RoomStatus = (typeof ROOM_STATUSES)[number];
 
@@ -22,6 +29,17 @@ const T_SHIRT_RANK = {
   L: 4,
   XL: 5,
 } as const;
+
+export interface ConsensusConfig {
+  consensusMode: ConsensusMode;
+  consensusThreshold: number;
+}
+
+export interface RoundResult {
+  resultType: ResultType;
+  resultValue: string | null;
+  consensusReached: boolean;
+}
 
 export function getDeck(scaleType: ScaleType) {
   if (scaleType === "powers_of_two") {
@@ -69,13 +87,37 @@ export function isParticipantFresh(lastSeenAt: number, now = Date.now()) {
   return now - lastSeenAt <= ACTIVE_PARTICIPANT_STALE_MS;
 }
 
-export function computeRoundResult(values: string[]) {
+export function normalizeConsensusThreshold(value: number) {
+  const threshold = Math.trunc(value);
+
+  if (threshold < MIN_CONSENSUS_THRESHOLD || threshold > MAX_CONSENSUS_THRESHOLD) {
+    throw new Error(
+      `Consensus threshold must be between ${MIN_CONSENSUS_THRESHOLD} and ${MAX_CONSENSUS_THRESHOLD}`,
+    );
+  }
+
+  return threshold;
+}
+
+export function resolveConsensusConfig(config?: Partial<ConsensusConfig>): ConsensusConfig {
+  return {
+    consensusMode: config?.consensusMode ?? "plurality",
+    consensusThreshold: normalizeConsensusThreshold(
+      config?.consensusThreshold ?? DEFAULT_CONSENSUS_THRESHOLD,
+    ),
+  };
+}
+
+export function computeRoundResult(values: string[], config?: Partial<ConsensusConfig>): RoundResult {
+  const consensusConfig = resolveConsensusConfig(config);
   const counts = new Map<string, number>();
+  let eligibleVotes = 0;
 
   for (const value of values) {
     if (value === "?") {
       continue;
     }
+    eligibleVotes += 1;
     counts.set(value, (counts.get(value) ?? 0) + 1);
   }
 
@@ -83,6 +125,7 @@ export function computeRoundResult(values: string[]) {
     return {
       resultType: "tie" as const,
       resultValue: null,
+      consensusReached: false,
     };
   }
 
@@ -122,11 +165,21 @@ export function computeRoundResult(values: string[]) {
     return {
       resultType: "tie" as const,
       resultValue: tieValues || null,
+      consensusReached: false,
     };
   }
 
+  const winner = winners[0];
+  const winnerCount = counts.get(winner) ?? 0;
+  const consensusReached =
+    consensusConfig.consensusMode === "plurality"
+      ? true
+      : eligibleVotes > 0 &&
+        winnerCount / eligibleVotes >= consensusConfig.consensusThreshold / 100;
+
   return {
     resultType: "most_voted" as const,
-    resultValue: winners[0],
+    resultValue: winner,
+    consensusReached,
   };
 }

@@ -96,6 +96,8 @@ describe("DashboardPage", () => {
       expect(convexState.createRoom).toHaveBeenCalledWith({
         name: "New Room",
         scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
         password: undefined,
         slug: undefined,
       });
