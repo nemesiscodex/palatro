@@ -20,6 +20,7 @@ const SCALE_OPTIONS: Array<{ label: string; value: ScaleType; icon: string }> = 
 ];
 
 interface CreateRoomFormProps {
+  mode?: "registered" | "guest";
   onCreateRoom: (values: {
     name: string;
     scaleType: ScaleType;
@@ -31,7 +32,10 @@ interface CreateRoomFormProps {
   }) => Promise<void>;
 }
 
-export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
+export default function CreateRoomForm({
+  mode = "registered",
+  onCreateRoom,
+}: CreateRoomFormProps) {
   const [name, setName] = useState("");
   const [scaleType, setScaleType] = useState<ScaleType>("fibonacci");
   const [consensusMode, setConsensusMode] = useState<ConsensusMode>("plurality");
@@ -42,6 +46,7 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const canSubmit = !isSubmitting;
+  const isGuestMode = mode === "guest";
 
   return (
     <form
@@ -60,8 +65,8 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
             consensusMode,
             consensusThreshold,
             hostVotingEnabled,
-            password: password.trim() || undefined,
-            slug: slug.trim() || undefined,
+            password: isGuestMode ? undefined : password.trim() || undefined,
+            slug: isGuestMode ? undefined : slug.trim() || undefined,
           });
           setName("");
           setScaleType("fibonacci");
@@ -87,16 +92,23 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
         />
       </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="room-slug">Custom URL slug (optional)</Label>
-        <Input
-          id="room-slug"
-          value={slug}
-          onChange={(event) => setSlug(event.target.value)}
-          placeholder="Leave blank for random UUID"
-          className="bg-black/10"
-        />
-      </div>
+      {isGuestMode ? (
+        <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-muted-foreground">
+          Guest rooms are temporary, saved only on this device, and limited to one active room.
+          Sign up to unlock custom links, passwords, and long-term ownership.
+        </div>
+      ) : (
+        <div className="grid gap-2">
+          <Label htmlFor="room-slug">Custom URL slug (optional)</Label>
+          <Input
+            id="room-slug"
+            value={slug}
+            onChange={(event) => setSlug(event.target.value)}
+            placeholder="Leave blank for random UUID"
+            className="bg-black/10"
+          />
+        </div>
+      )}
 
       {/* Scale type as pill selector */}
       <div className="grid gap-2">
@@ -245,31 +257,33 @@ export default function CreateRoomForm({ onCreateRoom }: CreateRoomFormProps) {
       </div>
 
       {/* Optional password */}
-      <div className="grid gap-2">
-        <button
-          type="button"
-          onClick={() => setShowPassword(!showPassword)}
-          className={cn(
-            "flex items-center gap-2 rounded-full border px-4 py-2.5 text-[0.7rem] font-medium uppercase tracking-[0.14em] transition-all duration-200",
-            showPassword
-              ? "border-primary/30 bg-primary/10 text-primary"
-              : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.12] hover:text-foreground",
-          )}
-        >
-          <span className="text-xs">{showPassword ? "\u2665" : "\u2663"}</span>
-          {showPassword ? "Password enabled" : "Add password (optional)"}
-        </button>
-        {showPassword ? (
-          <Input
-            id="room-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter room password"
-            className="bg-black/10"
-          />
-        ) : null}
-      </div>
+      {isGuestMode ? null : (
+        <div className="grid gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className={cn(
+              "flex items-center gap-2 rounded-full border px-4 py-2.5 text-[0.7rem] font-medium uppercase tracking-[0.14em] transition-all duration-200",
+              showPassword
+                ? "border-primary/30 bg-primary/10 text-primary"
+                : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.12] hover:text-foreground",
+            )}
+          >
+            <span className="text-xs">{showPassword ? "\u2665" : "\u2663"}</span>
+            {showPassword ? "Password enabled" : "Add password (optional)"}
+          </button>
+          {showPassword ? (
+            <Input
+              id="room-password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter room password"
+              className="bg-black/10"
+            />
+          ) : null}
+        </div>
+      )}
 
       <Button type="submit" disabled={!canSubmit} className="w-full">
         {isSubmitting ? "Creating..." : "Open table"}

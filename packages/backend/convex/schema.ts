@@ -3,7 +3,9 @@ import { v } from "convex/values";
 
 export default defineSchema({
   rooms: defineTable({
-    ownerUserId: v.string(),
+    ownerKind: v.optional(v.union(v.literal("registered"), v.literal("guest"))),
+    ownerUserId: v.optional(v.string()),
+    ownerGuestTokenHash: v.optional(v.string()),
     name: v.string(),
     slug: v.string(),
     scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
@@ -15,9 +17,12 @@ export default defineSchema({
     status: v.union(v.literal("idle"), v.literal("voting"), v.literal("revealed")),
     activeRoundId: v.optional(v.id("rounds")),
     createdAt: v.number(),
+    lastActivityAt: v.optional(v.number()),
+    guestExpiresAt: v.optional(v.number()),
     updatedAt: v.number(),
   })
     .index("by_ownerUserId", ["ownerUserId"])
+    .index("by_ownerGuestTokenHash", ["ownerGuestTokenHash"])
     .index("by_slug", ["slug"]),
   participants: defineTable({
     roomId: v.id("rooms"),

@@ -5,10 +5,18 @@ import { MockLink, MockNavigate, RenderIf, resetSharedMocks, toastError, toastSu
 
 const convexState = {
   auth: { isAuthenticated: true, isLoading: false },
-  queryValue: [] as any,
+  queryValue: [] as unknown[],
   createRoom: vi.fn(),
   deleteRoom: vi.fn(),
 };
+
+interface DashboardHeadResult {
+  meta?: Array<Record<string, string>>;
+}
+
+interface MockDashboardRoute {
+  head?: () => DashboardHeadResult;
+}
 
 vi.mock("sonner", () => ({
   toast: {
@@ -160,7 +168,7 @@ describe("DashboardPage", () => {
   });
 
   it("marks dashboard route as noindex", () => {
-    const head = Route.head?.();
+    const head = (Route as unknown as MockDashboardRoute).head?.();
     expect(head?.meta).toContainEqual({
       name: "robots",
       content: "noindex, nofollow",

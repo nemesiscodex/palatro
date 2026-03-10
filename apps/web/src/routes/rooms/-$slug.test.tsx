@@ -4,14 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetSharedMocks, toastError, toastSuccess } from "@/test/mocks";
 
 const routeState = {
-  queryValue: undefined as any,
-  queryCalls: [] as any[],
+  queryValue: undefined as unknown,
+  queryCalls: [] as unknown[],
   posthogCapture: vi.fn(),
   playSound: vi.fn(),
   mutations: {
     joinAsGuest: vi.fn(),
     joinAsViewer: vi.fn(),
     joinAsHost: vi.fn(),
+    claimGuestOwnership: vi.fn(),
     heartbeat: vi.fn(),
     leave: vi.fn(),
     kick: vi.fn(),
@@ -23,6 +24,15 @@ const routeState = {
     updatePassword: vi.fn(),
   },
 };
+
+interface RoomHeadResult {
+  links?: Array<Record<string, string>>;
+  meta?: Array<Record<string, string>>;
+}
+
+interface MockRoomRoute {
+  head?: (args: { params: { slug: string } }) => RoomHeadResult;
+}
 
 vi.mock("sonner", () => ({
   toast: {
@@ -49,6 +59,7 @@ vi.mock("@palatro/backend/convex/_generated/api", () => ({
   api: {
     rooms: {
       getBySlug: "rooms.getBySlug",
+      claimGuestOwnership: "rooms.claimGuestOwnership",
       updateConfig: "rooms.updateConfig",
       updatePassword: "rooms.updatePassword",
     },
@@ -79,6 +90,7 @@ vi.mock("convex/react", () => ({
       "participants.joinAsGuest": "joinAsGuest",
       "participants.joinAsViewer": "joinAsViewer",
       "participants.joinAsHost": "joinAsHost",
+      "rooms.claimGuestOwnership": "claimGuestOwnership",
       "participants.heartbeat": "heartbeat",
       "participants.leave": "leave",
       "participants.kick": "kick",
@@ -108,6 +120,7 @@ describe("RoomPage", () => {
   beforeEach(() => {
     routeState.queryValue = undefined;
     routeState.queryCalls = [];
+    window.localStorage.clear();
     for (const mutation of Object.values(routeState.mutations)) {
       mutation.mockReset();
     }
@@ -224,6 +237,7 @@ describe("RoomPage", () => {
         id: "room-1",
         name: "Sprint Poker",
         slug: "demo-room",
+        ownerKind: "registered",
         scaleType: "fibonacci",
         consensusMode: "plurality",
         consensusThreshold: 70,
@@ -251,6 +265,104 @@ describe("RoomPage", () => {
 
     await waitFor(() => {
       expect(routeState.mutations.joinAsHost).toHaveBeenCalledWith({ slug: "demo-room" });
+    });
+  });
+
+  it("auto-joins the host for a guest-owned room from the same device", async () => {
+    window.localStorage.setItem("pointing-poker:guest-owner-token", "owner-123");
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        ownerKind: "guest",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      deck: ["1", "2", "3"],
+      participants: [],
+      activeRound: null,
+      viewer: {
+        isOwner: true,
+        isGuestOwner: true,
+        canClaimOwnership: false,
+        participantId: null,
+        participantKind: null,
+        canVote: false,
+        needsJoin: true,
+        currentVote: null,
+        displayName: "",
+        isAuthenticated: false,
+      },
+    };
+    routeState.mutations.joinAsHost.mockResolvedValue({ participantId: "host-1" });
+
+    render(<RoomPage slug="demo-room" />);
+
+    await waitFor(() => {
+      expect(routeState.mutations.joinAsHost).toHaveBeenCalledWith({
+        slug: "demo-room",
+        guestOwnerToken: "owner-123",
+      });
+    });
+  });
+
+  it("shows the guest owner banner, hides password controls, and auto-claims after sign in", async () => {
+    window.localStorage.setItem("pointing-poker:guest-owner-token", "owner-123");
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        ownerKind: "guest",
+        guestExpiresAt: Date.now() + 60_000,
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      deck: ["1", "2", "3"],
+      participants: [],
+      activeRound: null,
+      viewer: {
+        isOwner: true,
+        isGuestOwner: true,
+        canClaimOwnership: true,
+        participantId: "host-1",
+        participantKind: "host",
+        canVote: false,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Host",
+        isAuthenticated: true,
+      },
+    };
+    routeState.mutations.claimGuestOwnership.mockResolvedValue({
+      roomId: "room-1",
+      slug: "demo-room",
+    });
+
+    render(<RoomPage slug="demo-room" />);
+
+    expect(
+      screen.getByText(/This guest room is temporary and saved only on this device/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create account to claim" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Room password")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(routeState.mutations.claimGuestOwnership).toHaveBeenCalledWith({
+        roomId: "room-1",
+        guestOwnerToken: "owner-123",
+      });
     });
   });
 
@@ -595,7 +707,7 @@ describe("RoomPage", () => {
   });
 
   it("includes share metadata for room links", () => {
-    const head = Route.head?.({ params: { slug: "demo-room" } } as any);
+    const head = (Route as unknown as MockRoomRoute).head?.({ params: { slug: "demo-room" } });
     expect(head?.meta).toContainEqual({
       property: "og:title",
       content: "Room demo-room - Palatro",

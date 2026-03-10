@@ -179,4 +179,32 @@ describe("CreateRoomForm", () => {
       });
     });
   });
+
+  it("hides slug and password controls in guest mode", () => {
+    render(<CreateRoomForm mode="guest" onCreateRoom={onCreateRoom} />);
+
+    expect(screen.queryByLabelText("Custom URL slug (optional)")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add password/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/saved only on this device/i)).toBeInTheDocument();
+  });
+
+  it("omits guest-only disabled fields from guest mode submissions", async () => {
+    onCreateRoom.mockResolvedValue(undefined);
+    render(<CreateRoomForm mode="guest" onCreateRoom={onCreateRoom} />);
+
+    fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "Guest Dealer" } });
+    fireEvent.click(screen.getByRole("button", { name: "Open table" }));
+
+    await waitFor(() => {
+      expect(onCreateRoom).toHaveBeenCalledWith({
+        name: "Guest Dealer",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        password: undefined,
+        slug: undefined,
+      });
+    });
+  });
 });

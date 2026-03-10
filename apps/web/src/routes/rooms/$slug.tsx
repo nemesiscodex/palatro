@@ -18,7 +18,12 @@ import { useAppSound } from "@/hooks/use-app-sound";
 import { bong001Sound } from "@/lib/bong-001";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GENERIC_UNEXPECTED_ERROR_MESSAGE, getUserFacingErrorMessage } from "@/lib/errors";
-import { clearGuestToken, readGuestToken, writeGuestToken } from "@/lib/room-session";
+import {
+  clearGuestToken,
+  readGuestOwnerToken,
+  readGuestToken,
+  writeGuestToken,
+} from "@/lib/room-session";
 import { getSiteUrl } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 import { switch002Sound } from "@/lib/switch-002";
@@ -99,10 +104,12 @@ function RoomRouteComponent() {
 export function RoomPage({ slug }: { slug: string }) {
   const apiAny = api as any;
   const [guestToken, setGuestToken] = useState<string | null>(null);
+  const [guestOwnerToken, setGuestOwnerToken] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const posthog = usePostHog();
   const hostJoinRequested = useRef(false);
+  const guestClaimRequested = useRef(false);
   const trackedDoneRounds = useRef(new Set<string>());
   const playBlockedActionSound = useAppSound(bong001Sound, { volumeMultiplier: 0.55 });
   const playRoundRevealSound = useAppSound(switch002Sound, { volumeMultiplier: 0.6 });
@@ -110,13 +117,17 @@ export function RoomPage({ slug }: { slug: string }) {
 
   useEffect(() => {
     setGuestToken(readGuestToken(slug));
+    setGuestOwnerToken(readGuestOwnerToken());
     setStorageReady(true);
     hostJoinRequested.current = false;
+    guestClaimRequested.current = false;
   }, [slug]);
 
   const roomState = useQuery(
     apiAny.rooms.getBySlug,
-    storageReady ? { slug, guestToken: guestToken ?? undefined } : "skip",
+    storageReady
+      ? { slug, guestToken: guestToken ?? undefined, guestOwnerToken: guestOwnerToken ?? undefined }
+      : "skip",
   );
   const hostVotingEnabled = roomState?.room.hostVotingEnabled !== false;
   const eligibleParticipantCount = roomState?.eligibleParticipantCount ?? 0;
@@ -136,24 +147,58 @@ export function RoomPage({ slug }: { slug: string }) {
   const forceFinish = useMutation(apiAny.rounds.forceFinish);
   const updateConfig = useMutation(apiAny.rooms.updateConfig);
   const updatePassword = useMutation(apiAny.rooms.updatePassword);
+  const claimGuestOwnership = useMutation(apiAny.rooms.claimGuestOwnership);
 
   useEffect(() => {
     if (
       !roomState ||
       !roomState.viewer.isOwner ||
-      !roomState.viewer.isAuthenticated ||
       !roomState.viewer.needsJoin ||
       hostJoinRequested.current
     ) {
       return;
     }
 
+    if (roomState.room.ownerKind !== "guest" && !roomState.viewer.isAuthenticated) {
+      return;
+    }
+
+    if (roomState.room.ownerKind === "guest" && !guestOwnerToken) {
+      return;
+    }
+
     hostJoinRequested.current = true;
-    void joinAsHost({ slug }).catch((error: unknown) => {
+    void joinAsHost({
+      slug,
+      ...(guestOwnerToken ? { guestOwnerToken } : {}),
+    }).catch((error: unknown) => {
       hostJoinRequested.current = false;
       toast.error(getUserFacingErrorMessage(error, GENERIC_UNEXPECTED_ERROR_MESSAGE));
     });
-  }, [joinAsHost, roomState, slug]);
+  }, [guestOwnerToken, joinAsHost, roomState, slug]);
+
+  useEffect(() => {
+    if (
+      !roomState?.viewer.canClaimOwnership ||
+      !guestOwnerToken ||
+      guestClaimRequested.current
+    ) {
+      return;
+    }
+
+    guestClaimRequested.current = true;
+    void claimGuestOwnership({
+      roomId: roomState.room.id,
+      guestOwnerToken,
+    })
+      .then(() => {
+        toast.success("Room claimed");
+      })
+      .catch((error: unknown) => {
+        guestClaimRequested.current = false;
+        toast.error(getUserFacingErrorMessage(error, "Could not claim room"));
+      });
+  }, [claimGuestOwnership, guestOwnerToken, roomState]);
 
   useEffect(() => {
     if (!roomState?.viewer.participantId) {
@@ -165,13 +210,14 @@ export function RoomPage({ slug }: { slug: string }) {
         roomId: roomState.room.id,
         participantId: roomState.viewer.participantId,
         guestToken: guestToken ?? undefined,
+        ...(guestOwnerToken ? { guestOwnerToken } : {}),
       }).catch(() => null);
     }, 30_000);
 
     return () => {
       window.clearInterval(interval);
     };
-  }, [guestToken, heartbeat, roomState]);
+  }, [guestOwnerToken, guestToken, heartbeat, roomState]);
 
   useEffect(() => {
     if (
@@ -231,8 +277,7 @@ export function RoomPage({ slug }: { slug: string }) {
   }
 
   const canManage = roomState.viewer.isOwner;
-  const showJoinForm =
-    roomState.viewer.needsJoin && !(roomState.viewer.isOwner && roomState.viewer.isAuthenticated);
+  const showJoinForm = roomState.viewer.needsJoin && !roomState.viewer.isOwner;
   const isVoting = roomState.room.status === "voting";
   const isRevealed = roomState.room.status === "revealed";
 
@@ -312,6 +357,40 @@ export function RoomPage({ slug }: { slug: string }) {
               Copy URL
             </Button>
           </div>
+
+          {roomState.room.ownerKind === "guest" && roomState.viewer.isOwner ? (
+            <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-4">
+              <p className="text-sm font-medium text-foreground">
+                This guest room is temporary and saved only on this device for 24 hours.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Create an account to claim it, keep it longer, and manage rooms from anywhere.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    window.location.assign(`/?redirectTo=${encodeURIComponent(`/rooms/${slug}`)}`);
+                  }}
+                >
+                  Create account to claim
+                </Button>
+                {!roomState.viewer.isAuthenticated ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      window.location.assign(`/?redirectTo=${encodeURIComponent(`/rooms/${slug}`)}&mode=signin`);
+                    }}
+                  >
+                    Sign in to claim
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* The Table — main interaction area */}
@@ -355,6 +434,7 @@ export function RoomPage({ slug }: { slug: string }) {
                           roomId: roomState.room.id,
                           participantId: roomState.viewer.participantId,
                           guestToken,
+                          ...(guestOwnerToken ? { guestOwnerToken } : {}),
                         });
                         clearGuestToken(slug);
                         setGuestToken(null);
@@ -400,6 +480,7 @@ export function RoomPage({ slug }: { slug: string }) {
                         participantId: roomState.viewer.participantId,
                         value,
                         guestToken: guestToken ?? undefined,
+                        ...(guestOwnerToken ? { guestOwnerToken } : {}),
                       });
                       posthog.capture("vote_cast", {
                         room_id: String(roomState.room.id),
@@ -471,6 +552,7 @@ export function RoomPage({ slug }: { slug: string }) {
                   await kick({
                     roomId: roomState.room.id,
                     participantId,
+                    ...(guestOwnerToken ? { guestOwnerToken } : {}),
                   });
                   toast.success("Participant removed");
                 }, "Could not remove participant");
@@ -496,17 +578,26 @@ export function RoomPage({ slug }: { slug: string }) {
               isBusy={isBusy}
               onStart={() =>
                 runBusyTask(async () => {
-                  await startRound({ roomId: roomState.room.id });
+                  await startRound({
+                    roomId: roomState.room.id,
+                    ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                  });
                 }, "Could not start the round")
               }
               onRestart={() =>
                 runBusyTask(async () => {
-                  await restartRound({ roomId: roomState.room.id });
+                  await restartRound({
+                    roomId: roomState.room.id,
+                    ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                  });
                 }, "Could not restart the round")
               }
               onForceFinish={() =>
                 runBusyTask(async () => {
-                  await forceFinish({ roomId: roomState.room.id });
+                  await forceFinish({
+                    roomId: roomState.room.id,
+                    ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                  });
                 }, "Could not finish the round")
               }
             />
@@ -532,6 +623,7 @@ export function RoomPage({ slug }: { slug: string }) {
               consensusThreshold={roomState.room.consensusThreshold}
               hostVotingEnabled={hostVotingEnabled}
               hasPassword={roomState.room.hasPassword}
+              allowPassword={roomState.room.ownerKind !== "guest"}
               disabled={!canManage || roomState.room.status === "voting" || isBusy}
               onUpdateConfig={async ({
                 scaleType,
@@ -546,6 +638,7 @@ export function RoomPage({ slug }: { slug: string }) {
                     consensusMode,
                     consensusThreshold,
                     hostVotingEnabled,
+                    ...(guestOwnerToken ? { guestOwnerToken } : {}),
                   });
                   playConfigChangedSound();
                   toast.success("Room configuration updated");

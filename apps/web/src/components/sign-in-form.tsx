@@ -3,14 +3,20 @@ import { toast } from "sonner";
 import z from "zod";
 import { usePostHog } from "@posthog/react";
 
-import { authClient } from "@/lib/auth-client";
 import { getUserFacingErrorMessage } from "@/lib/errors";
+import { authClient } from "@/lib/auth-client";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
-export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
+export default function SignInForm({
+  onSwitchToSignUp,
+  redirectTo,
+}: {
+  onSwitchToSignUp: () => void;
+  redirectTo?: string;
+}) {
   const posthog = usePostHog();
   const form = useForm({
     defaultValues: {
@@ -28,7 +34,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
             posthog.capture("user_signed_in", {
               method: "email",
             });
-            window.location.assign("/dashboard");
+            window.location.assign(redirectTo || "/dashboard");
             toast.success("Sign in successful");
           },
           onError: (error) => {

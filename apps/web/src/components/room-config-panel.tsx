@@ -20,6 +20,7 @@ interface RoomConfigPanelProps {
   consensusThreshold: number;
   hostVotingEnabled: boolean;
   hasPassword: boolean;
+  allowPassword?: boolean;
   disabled?: boolean;
   onUpdateConfig: (values: {
     scaleType: ScaleType;
@@ -42,6 +43,7 @@ export default function RoomConfigPanel({
   consensusThreshold,
   hostVotingEnabled,
   hasPassword,
+  allowPassword = true,
   disabled = false,
   onUpdateConfig,
   onUpdatePassword,
@@ -350,123 +352,127 @@ export default function RoomConfigPanel({
       </div>
 
       {/* Room password */}
-      <div className="grid gap-3">
-        <div className="gold-rule" />
-        <p className="ornate-label text-muted-foreground/70">Room password</p>
+      {allowPassword ? (
+        <div className="grid gap-3">
+          <div className="gold-rule" />
+          <p className="ornate-label text-muted-foreground/70">Room password</p>
 
-        {!isEditingPassword ? (
-          <div className="grid gap-2">
-            <div className={cn(
-              "flex items-center gap-3 rounded-2xl border px-4 py-3 transition-all duration-200",
-              hasPassword
-                ? "border-primary/25 bg-primary/[0.06]"
-                : "border-white/[0.06] bg-white/[0.02]",
-            )}>
-              <span className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm",
+          {!isEditingPassword ? (
+            <div className="grid gap-2">
+              <div className={cn(
+                "flex items-center gap-3 rounded-2xl border px-4 py-3 transition-all duration-200",
                 hasPassword
-                  ? "bg-primary/20 text-primary"
-                  : "bg-white/[0.04] text-muted-foreground/50",
+                  ? "border-primary/25 bg-primary/[0.06]"
+                  : "border-white/[0.06] bg-white/[0.02]",
               )}>
-                {hasPassword ? "\u2660" : "\u2663"}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">
-                  {hasPassword ? "Password protected" : "No password"}
-                </p>
-                <p className="text-[0.65rem] text-muted-foreground/60">
-                  {hasPassword ? "Guests must enter the password to join" : "Anyone with the link can join"}
-                </p>
+                <span className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm",
+                  hasPassword
+                    ? "bg-primary/20 text-primary"
+                    : "bg-white/[0.04] text-muted-foreground/50",
+                )}>
+                  {hasPassword ? "\u2660" : "\u2663"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground">
+                    {hasPassword ? "Password protected" : "No password"}
+                  </p>
+                  <p className="text-[0.65rem] text-muted-foreground/60">
+                    {hasPassword
+                      ? "Guests must enter the password to join"
+                      : "Anyone with the link can join"}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={disabled || isSaving}
-                className="flex-1 text-[0.65rem] uppercase tracking-[0.14em]"
-                onClick={() => {
-                  setPasswordDraft("");
-                  setIsEditingPassword(true);
-                }}
-              >
-                {hasPassword ? "Change password" : "Set password"}
-              </Button>
-              {hasPassword ? (
+              <div className="flex gap-2">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   disabled={disabled || isSaving}
-                  className="flex-1 text-[0.65rem] uppercase tracking-[0.14em] text-destructive hover:text-destructive"
-                  onClick={async () => {
-                    setIsSaving(true);
-                    try {
-                      await onUpdatePassword(undefined);
-                    } finally {
-                      setIsSaving(false);
-                    }
+                  className="flex-1 text-[0.65rem] uppercase tracking-[0.14em]"
+                  onClick={() => {
+                    setPasswordDraft("");
+                    setIsEditingPassword(true);
                   }}
                 >
-                  Remove password
+                  {hasPassword ? "Change password" : "Set password"}
                 </Button>
-              ) : null}
+                {hasPassword ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={disabled || isSaving}
+                    className="flex-1 text-[0.65rem] uppercase tracking-[0.14em] text-destructive hover:text-destructive"
+                    onClick={async () => {
+                      setIsSaving(true);
+                      try {
+                        await onUpdatePassword(undefined);
+                      } finally {
+                        setIsSaving(false);
+                      }
+                    }}
+                  >
+                    Remove password
+                  </Button>
+                ) : null}
+              </div>
             </div>
-          </div>
-        ) : (
-          <form
-            className="grid gap-2"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              const trimmed = passwordDraft.trim();
-              if (!trimmed) return;
+          ) : (
+            <form
+              className="grid gap-2"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const trimmed = passwordDraft.trim();
+                if (!trimmed) return;
 
-              setIsSaving(true);
-              try {
-                await onUpdatePassword(trimmed);
-                setIsEditingPassword(false);
-                setPasswordDraft("");
-              } finally {
-                setIsSaving(false);
-              }
-            }}
-          >
-            <Input
-              ref={passwordInputRef}
-              type="password"
-              value={passwordDraft}
-              onChange={(event) => setPasswordDraft(event.target.value)}
-              placeholder="Enter new password"
-              className="bg-black/10"
-            />
-            <div className="flex gap-2">
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isSaving || !passwordDraft.trim()}
-                className="flex-1"
-              >
-                {isSaving ? "Saving..." : "Save password"}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={isSaving}
-                className="flex-1"
-                onClick={() => {
+                setIsSaving(true);
+                try {
+                  await onUpdatePassword(trimmed);
                   setIsEditingPassword(false);
                   setPasswordDraft("");
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        )}
-      </div>
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
+            >
+              <Input
+                ref={passwordInputRef}
+                type="password"
+                value={passwordDraft}
+                onChange={(event) => setPasswordDraft(event.target.value)}
+                placeholder="Enter new password"
+                className="bg-black/10"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSaving || !passwordDraft.trim()}
+                  className="flex-1"
+                >
+                  {isSaving ? "Saving..." : "Save password"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isSaving}
+                  className="flex-1"
+                  onClick={() => {
+                    setIsEditingPassword(false);
+                    setPasswordDraft("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

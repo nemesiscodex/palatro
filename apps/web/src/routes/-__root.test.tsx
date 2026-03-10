@@ -59,9 +59,20 @@ vi.mock("@/lib/site-url", () => ({
 
 import { Route } from "./__root";
 
+interface RootHeadResult {
+  links?: Array<Record<string, string>>;
+  meta?: Array<Record<string, string>>;
+}
+
+interface MockRootRoute {
+  options: {
+    head: () => RootHeadResult;
+  };
+}
+
 describe("root metadata", () => {
   it("includes Open Graph and Twitter tags with the banner image", () => {
-    const head = Route.options.head();
+    const head = (Route as unknown as MockRootRoute).options.head();
     const meta = head.meta as Array<Record<string, string>>;
 
     expect(head.links).toContainEqual({

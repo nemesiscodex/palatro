@@ -15,6 +15,13 @@ import {
 } from "./pointingPoker";
 
 type Ctx = any;
+const GUEST_ROOM_TTL_MS = 24 * 60 * 60 * 1000;
+
+export function resolveRoomOwnerKind(
+  room: Pick<Doc<"rooms">, "ownerKind">,
+): "registered" | "guest" {
+  return room.ownerKind ?? "registered";
+}
 
 export async function requireAuthSession(ctx: Ctx) {
   const authUser = await authComponent.safeGetAuthUser(ctx);
@@ -46,6 +53,8 @@ export async function getRoomBySlugOrThrow(ctx: Ctx, slug: string) {
     throw new ConvexError("Room not found");
   }
 
+  assertRoomNotExpired(room);
+
   return room;
 }
 
@@ -58,13 +67,15 @@ export async function getRoomBySlug(ctx: Ctx, slug: string) {
 
 export async function assertRoomOwner(ctx: Ctx, roomId: Id<"rooms">) {
   const { authUser, userId } = await requireAuthSession(ctx);
-  const room = await ctx.db.get(roomId);
+  const room = (await ctx.db.get(roomId)) as Doc<"rooms"> | null;
 
   if (!room) {
     throw new ConvexError("Room not found");
   }
 
-  if (room.ownerUserId !== userId) {
+  assertRoomNotExpired(room);
+
+  if (room.ownerKind !== "registered" || room.ownerUserId !== userId) {
     throw new ConvexError("Only the room owner can do that");
   }
 
@@ -72,6 +83,105 @@ export async function assertRoomOwner(ctx: Ctx, roomId: Id<"rooms">) {
     authUser,
     userId,
     room,
+  };
+}
+
+export function getOptionalGuestOwnerSession(_ctx: Ctx, guestOwnerToken?: string) {
+  const token = guestOwnerToken?.trim();
+  const guestOwnerTokenHash = token ? hashGuestToken(token) : "";
+
+  return {
+    guestOwnerToken: token || null,
+    guestOwnerTokenHash: guestOwnerTokenHash || null,
+  };
+}
+
+export function isGuestRoomExpired(
+  room: Pick<Doc<"rooms">, "ownerKind" | "guestExpiresAt">,
+  now = Date.now(),
+) {
+  return resolveRoomOwnerKind(room) === "guest" && !!room.guestExpiresAt && room.guestExpiresAt <= now;
+}
+
+export function assertRoomNotExpired(
+  room: Pick<Doc<"rooms">, "ownerKind" | "guestExpiresAt">,
+  now = Date.now(),
+) {
+  if (isGuestRoomExpired(room, now)) {
+    throw new ConvexError("This guest room has expired. Create an account to keep rooms longer.");
+  }
+}
+
+export function getRoomActivityPatch(
+  room: Pick<Doc<"rooms">, "ownerKind">,
+  now = Date.now(),
+) {
+  return resolveRoomOwnerKind(room) === "guest"
+    ? {
+        lastActivityAt: now,
+        guestExpiresAt: now + GUEST_ROOM_TTL_MS,
+        updatedAt: now,
+      }
+    : {
+        lastActivityAt: now,
+        updatedAt: now,
+      };
+}
+
+export async function touchRoomActivity(ctx: Ctx, roomId: Id<"rooms">, now = Date.now()) {
+  const room = (await ctx.db.get(roomId)) as Doc<"rooms"> | null;
+
+  if (!room) {
+    throw new ConvexError("Room not found");
+  }
+
+  assertRoomNotExpired(room, now);
+  await ctx.db.patch(room._id, getRoomActivityPatch(room, now));
+  return room;
+}
+
+export async function assertRoomManagementAccess(
+  ctx: Ctx,
+  roomId: Id<"rooms">,
+  guestOwnerToken?: string,
+) {
+  const room = (await ctx.db.get(roomId)) as Doc<"rooms"> | null;
+
+  if (!room) {
+    throw new ConvexError("Room not found");
+  }
+
+  assertRoomNotExpired(room);
+
+  if (resolveRoomOwnerKind(room) === "registered") {
+    const { authUser, userId } = await requireAuthSession(ctx);
+
+    if (room.ownerUserId !== userId) {
+      throw new ConvexError("Only the room owner can do that");
+    }
+
+    return {
+      room,
+      authUser,
+      userId,
+      isGuestOwner: false,
+    };
+  }
+
+  const guestOwnerSession = getOptionalGuestOwnerSession(ctx, guestOwnerToken);
+
+  if (
+    !guestOwnerSession.guestOwnerTokenHash ||
+    room.ownerGuestTokenHash !== guestOwnerSession.guestOwnerTokenHash
+  ) {
+    throw new ConvexError("Only the room owner can do that");
+  }
+
+  return {
+    room,
+    authUser: null,
+    userId: null,
+    isGuestOwner: true,
   };
 }
 
@@ -170,6 +280,34 @@ export async function findHostParticipantByUserId(
     .unique();
 }
 
+export async function findHostParticipantByGuestOwnerToken(
+  ctx: Ctx,
+  roomId: Id<"rooms">,
+  guestOwnerToken?: string,
+) {
+  if (!guestOwnerToken) {
+    return null;
+  }
+
+  const guestOwnerTokenHash = hashGuestToken(guestOwnerToken);
+  if (!guestOwnerTokenHash) {
+    return null;
+  }
+
+  const participant = await ctx.db
+    .query("participants")
+    .withIndex("by_roomId_and_guestTokenHash", (q: any) =>
+      q.eq("roomId", roomId).eq("guestTokenHash", guestOwnerTokenHash),
+    )
+    .unique();
+
+  if (!participant || participant.kind !== "host") {
+    return null;
+  }
+
+  return participant;
+}
+
 export async function ensureUniqueDisplayName(
   ctx: Ctx,
   roomId: Id<"rooms">,
@@ -238,7 +376,7 @@ export async function finishRound(
   await ctx.db.patch(room._id, {
     status: "revealed",
     activeRoundId: round._id,
-    updatedAt: endedAt,
+    ...getRoomActivityPatch(room, endedAt),
   });
 
   return {
@@ -248,9 +386,17 @@ export async function finishRound(
   };
 }
 
-export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string) {
+export async function buildRoomState(
+  ctx: Ctx,
+  slug: string,
+  guestToken?: string,
+  guestOwnerToken?: string,
+) {
   const room = await getRoomBySlug(ctx, slug);
   if (!room) {
+    return null;
+  }
+  if (isGuestRoomExpired(room)) {
     return null;
   }
   const now = Date.now();
@@ -269,13 +415,27 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
     eligibleRoundVotes.map((vote: Doc<"votes">) => [vote.participantId, vote]),
   );
   const { authUser, userId } = await getOptionalAuthSession(ctx);
-  const hostParticipant = userId ? await findHostParticipantByUserId(ctx, room._id, userId) : null;
+  const registeredHostParticipant =
+    userId && resolveRoomOwnerKind(room) === "registered"
+      ? await findHostParticipantByUserId(ctx, room._id, userId)
+      : null;
+  const guestOwnerHostParticipant =
+    resolveRoomOwnerKind(room) === "guest"
+      ? await findHostParticipantByGuestOwnerToken(ctx, room._id, guestOwnerToken)
+      : null;
   const guestParticipant = guestToken
     ? await findGuestParticipantByToken(ctx, room._id, guestToken)
     : null;
-  const knownParticipant = hostParticipant ?? guestParticipant;
+  const knownParticipant = registeredHostParticipant ?? guestOwnerHostParticipant ?? guestParticipant;
   const viewerParticipant = knownParticipant?.isActive ? knownParticipant : null;
-  const isOwner = !!userId && room.ownerUserId === userId;
+  const guestOwnerSession = getOptionalGuestOwnerSession(ctx, guestOwnerToken);
+  const ownerKind = resolveRoomOwnerKind(room);
+  const isRegisteredOwner = ownerKind === "registered" && !!userId && room.ownerUserId === userId;
+  const isGuestOwner =
+    ownerKind === "guest" &&
+    !!guestOwnerSession.guestOwnerTokenHash &&
+    room.ownerGuestTokenHash === guestOwnerSession.guestOwnerTokenHash;
+  const isOwner = isRegisteredOwner || isGuestOwner;
   const consensusConfig = resolveConsensusConfig({
     consensusMode: room.consensusMode,
     consensusThreshold: room.consensusThreshold,
@@ -293,6 +453,8 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
       hostVotingEnabled,
       status: room.status,
       hasPassword: !!room.password,
+      ownerKind,
+      guestExpiresAt: room.guestExpiresAt ?? null,
     },
     eligibleParticipantCount: participants.filter((participant: Doc<"participants">) =>
       canParticipantVoteInRoom(participant, room),
@@ -321,6 +483,8 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
       : null,
     viewer: {
       isOwner,
+      isGuestOwner,
+      canClaimOwnership: ownerKind === "guest" && !!userId && isGuestOwner,
       participantId: viewerParticipant?._id ?? null,
       participantKind: viewerParticipant?.kind ?? null,
       canVote:
@@ -336,7 +500,9 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
       displayName:
         viewerParticipant?.displayName ??
         knownParticipant?.displayName ??
-        (isOwner ? normalizeDisplayName(String(authUser?.name ?? authUser?.email ?? "Host")) : ""),
+        (isRegisteredOwner
+          ? normalizeDisplayName(String(authUser?.name ?? authUser?.email ?? "Host"))
+          : ""),
       isAuthenticated: !!userId,
     },
   };

@@ -91,4 +91,20 @@ describe("SignInForm", () => {
 
     expect(onSwitchToSignUp).toHaveBeenCalledTimes(1);
   });
+
+  it("uses redirectTo when provided", async () => {
+    signInEmail.mockImplementation(async (_values, callbacks) => {
+      callbacks.onSuccess();
+    });
+
+    render(<SignInForm onSwitchToSignUp={vi.fn()} redirectTo="/rooms/demo-room" />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "dealer@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => {
+      expect(window.location.assign).toHaveBeenCalledWith("/rooms/demo-room");
+    });
+  });
 });

@@ -5,12 +5,14 @@ import { ConvexError, v } from "convex/values";
 import { withUnexpectedErrorLogging } from "./errors";
 import { verifyPassword } from "./passwordUtils";
 import {
-  assertRoomOwner,
+  assertRoomManagementAccess,
   ensureUniqueDisplayName,
   findGuestParticipantByToken,
+  findHostParticipantByGuestOwnerToken,
   findHostParticipantByUserId,
   finishRound,
   getFreshVotingParticipants,
+  getRoomActivityPatch,
   getRoomBySlugOrThrow,
   requireAuthSession,
 } from "./pokerHelpers";
@@ -80,6 +82,10 @@ async function deactivateParticipant(ctx: any, participant: Doc<"participants">)
     lastSeenAt: now,
   });
 
+  if (room) {
+    await ctx.db.patch(room._id, getRoomActivityPatch(room, now));
+  }
+
   await finalizeRoundIfReadyAfterSeatChange(ctx, participant.roomId, now);
 }
 
@@ -141,6 +147,7 @@ async function joinAsGuestSessionParticipant(
       isActive: true,
       lastSeenAt: now,
     });
+    await ctx.db.patch(room._id, getRoomActivityPatch(room, now));
 
     await finalizeRoundIfReadyAfterSeatChange(ctx, room._id, now);
 
@@ -159,6 +166,7 @@ async function joinAsGuestSessionParticipant(
     lastSeenAt: now,
     createdAt: now,
   });
+  await ctx.db.patch(room._id, getRoomActivityPatch(room, now));
 
   return {
     participantId,
@@ -193,18 +201,22 @@ export const joinAsViewer = mutation({
 export const joinAsHost = mutation({
   args: {
     slug: v.string(),
+    guestOwnerToken: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("participants.joinAsHost", async (ctx, args) => {
     const room = await getRoomBySlugOrThrow(ctx, args.slug);
-    const { authUser, userId } = await requireAuthSession(ctx);
-
-    if (room.ownerUserId !== userId) {
-      throw new ConvexError("Only the room owner can join as host");
-    }
-
     const now = Date.now();
-    const displayName = normalizeDisplayName(String(authUser.name ?? authUser.email ?? "Host"));
-    const existingParticipant = await findHostParticipantByUserId(ctx, room._id, userId);
+    const managementAccess = await assertRoomManagementAccess(ctx, room._id, args.guestOwnerToken);
+    const displayName = normalizeDisplayName(
+      managementAccess.isGuestOwner
+        ? "Host"
+        : String(
+            managementAccess.authUser?.name ?? managementAccess.authUser?.email ?? "Host",
+          ),
+    );
+    const existingParticipant = managementAccess.isGuestOwner
+      ? await findHostParticipantByGuestOwnerToken(ctx, room._id, args.guestOwnerToken)
+      : await findHostParticipantByUserId(ctx, room._id, managementAccess.userId!);
 
     if (existingParticipant) {
       await ctx.db.patch(existingParticipant._id, {
@@ -212,6 +224,7 @@ export const joinAsHost = mutation({
         isActive: true,
         lastSeenAt: now,
       });
+      await ctx.db.patch(room._id, getRoomActivityPatch(room, now));
 
       return {
         participantId: existingParticipant._id,
@@ -224,11 +237,13 @@ export const joinAsHost = mutation({
       roomId: room._id,
       kind: "host",
       displayName,
-      hostUserId: userId,
+      hostUserId: managementAccess.userId ?? undefined,
+      guestTokenHash: managementAccess.isGuestOwner ? hashGuestToken(args.guestOwnerToken!) : undefined,
       isActive: true,
       lastSeenAt: now,
       createdAt: now,
     });
+    await ctx.db.patch(room._id, getRoomActivityPatch(room, now));
 
     return {
       participantId,
@@ -241,6 +256,7 @@ export const leave = mutation({
     roomId: v.id("rooms"),
     participantId: v.id("participants"),
     guestToken: v.optional(v.string()),
+    guestOwnerToken: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("participants.leave", async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
@@ -255,12 +271,15 @@ export const leave = mutation({
         throw new ConvexError("Invalid guest session");
       }
     } else {
-      const { userId } = await requireAuthSession(ctx);
-      if (participant.hostUserId !== userId) {
-        throw new ConvexError("Only the host participant can leave this seat");
+      const guestOwnerToken = args.guestOwnerToken?.trim();
+      if (guestOwnerToken && participant.guestTokenHash === hashGuestToken(guestOwnerToken)) {
+        // Guest-owned host session is valid for this participant.
+      } else {
+        const { userId } = await requireAuthSession(ctx);
+        if (participant.hostUserId !== userId) {
+          throw new ConvexError("Only the host participant can leave this seat");
+        }
       }
-
-      await assertRoomOwner(ctx, args.roomId);
     }
 
     await deactivateParticipant(ctx, participant);
@@ -273,9 +292,10 @@ export const kick = mutation({
   args: {
     roomId: v.id("rooms"),
     participantId: v.id("participants"),
+    guestOwnerToken: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("participants.kick", async (ctx, args) => {
-    await assertRoomOwner(ctx, args.roomId);
+    await assertRoomManagementAccess(ctx, args.roomId, args.guestOwnerToken);
     await assertParticipantModerationRateLimit(ctx, String(args.roomId));
 
     const participant = (await ctx.db.get(args.participantId)) as Doc<"participants"> | null;
@@ -299,6 +319,7 @@ export const heartbeat = mutation({
     roomId: v.id("rooms"),
     participantId: v.id("participants"),
     guestToken: v.optional(v.string()),
+    guestOwnerToken: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("participants.heartbeat", async (ctx, args) => {
     const participant = await ctx.db.get(args.participantId);
@@ -313,16 +334,26 @@ export const heartbeat = mutation({
         throw new ConvexError("Invalid guest session");
       }
     } else {
-      const { userId } = await requireAuthSession(ctx);
-      if (participant.hostUserId !== userId) {
-        throw new ConvexError("Invalid host session");
+      const guestOwnerToken = args.guestOwnerToken?.trim();
+      if (guestOwnerToken && participant.guestTokenHash === hashGuestToken(guestOwnerToken)) {
+        // Guest-owned host session is valid for this participant.
+      } else {
+        const { userId } = await requireAuthSession(ctx);
+        if (participant.hostUserId !== userId) {
+          throw new ConvexError("Invalid host session");
+        }
       }
     }
 
+    const now = Date.now();
     await ctx.db.patch(participant._id, {
       isActive: true,
-      lastSeenAt: Date.now(),
+      lastSeenAt: now,
     });
+    const room = await ctx.db.get(args.roomId);
+    if (room) {
+      await ctx.db.patch(args.roomId, getRoomActivityPatch(room, now));
+    }
 
     return null;
   }),

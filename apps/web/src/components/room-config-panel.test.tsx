@@ -102,4 +102,21 @@ describe("RoomConfigPanel", () => {
       hostVotingEnabled: false,
     });
   });
+
+  it("hides the password section when passwords are not allowed", () => {
+    render(
+      <RoomConfigPanel
+        scaleType="fibonacci"
+        consensusMode="plurality"
+        consensusThreshold={70}
+        hostVotingEnabled={true}
+        hasPassword={false}
+        allowPassword={false}
+        onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
+        onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    expect(screen.queryByText("Room password")).not.toBeInTheDocument();
+  });
 });

@@ -4,24 +4,32 @@ import { ConvexError, v } from "convex/values";
 
 import { withUnexpectedErrorLogging } from "./errors";
 import {
-  assertRoomOwner,
+  assertRoomManagementAccess,
+  assertRoomNotExpired,
   assertVoteValueAllowed,
   buildRoomState,
   canParticipantVoteInRoom,
   findGuestParticipantByToken,
+  findHostParticipantByGuestOwnerToken,
   findHostParticipantByUserId,
   finishRound,
   getFreshVotingParticipants,
+  getRoomActivityPatch,
   requireAuthSession,
 } from "./pokerHelpers";
 import {
   assertRoundControlRateLimit,
   assertVoteCastRateLimit,
 } from "./rateLimit";
-import { isGuestSessionParticipant } from "./pointingPoker";
+import { hashGuestToken, isGuestSessionParticipant } from "./pointingPoker";
 
-async function startRoundForRoom(ctx: any, roomId: Id<"rooms">, allowActiveRoundReset: boolean) {
-  const { room } = await assertRoomOwner(ctx, roomId);
+async function startRoundForRoom(
+  ctx: any,
+  roomId: Id<"rooms">,
+  allowActiveRoundReset: boolean,
+  guestOwnerToken?: string,
+) {
+  const { room } = await assertRoomManagementAccess(ctx, roomId, guestOwnerToken);
   await assertRoundControlRateLimit(ctx, String(room._id));
   const now = Date.now();
 
@@ -54,7 +62,7 @@ async function startRoundForRoom(ctx: any, roomId: Id<"rooms">, allowActiveRound
   await ctx.db.patch(room._id, {
     status: "voting",
     activeRoundId: roundId,
-    updatedAt: now,
+    ...getRoomActivityPatch(room, now),
   });
 
   return {
@@ -68,6 +76,7 @@ async function resolveVotingParticipant(
   room: Doc<"rooms">,
   participantId: Id<"participants">,
   guestToken?: string,
+  guestOwnerToken?: string,
 ) {
   const participant = (await ctx.db.get(participantId)) as Doc<"participants"> | null;
 
@@ -79,6 +88,20 @@ async function resolveVotingParticipant(
     const guestParticipant = await findGuestParticipantByToken(ctx, room._id, guestToken);
     if (!guestParticipant || guestParticipant._id !== participant._id) {
       throw new ConvexError("Invalid guest session");
+    }
+
+    return participant;
+  }
+
+  const trimmedGuestOwnerToken = guestOwnerToken?.trim();
+  if (trimmedGuestOwnerToken && participant.guestTokenHash === hashGuestToken(trimmedGuestOwnerToken)) {
+    const guestOwnerHostParticipant = await findHostParticipantByGuestOwnerToken(
+      ctx,
+      room._id,
+      trimmedGuestOwnerToken,
+    );
+    if (!guestOwnerHostParticipant || guestOwnerHostParticipant._id !== participant._id) {
+      throw new ConvexError("Invalid host session");
     }
 
     return participant;
@@ -96,18 +119,20 @@ async function resolveVotingParticipant(
 export const start = mutation({
   args: {
     roomId: v.id("rooms"),
+    guestOwnerToken: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("rounds.start", async (ctx, args) => {
-    return await startRoundForRoom(ctx, args.roomId, false);
+    return await startRoundForRoom(ctx, args.roomId, false, args.guestOwnerToken);
   }),
 });
 
 export const restart = mutation({
   args: {
     roomId: v.id("rooms"),
+    guestOwnerToken: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("rounds.restart", async (ctx, args) => {
-    return await startRoundForRoom(ctx, args.roomId, true);
+    return await startRoundForRoom(ctx, args.roomId, true, args.guestOwnerToken);
   }),
 });
 
@@ -118,12 +143,14 @@ export const castVote = mutation({
     participantId: v.id("participants"),
     value: v.string(),
     guestToken: v.optional(v.string()),
+    guestOwnerToken: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("rounds.castVote", async (ctx, args) => {
     const room = await ctx.db.get(args.roomId);
     if (!room) {
       throw new ConvexError("Room not found");
     }
+    assertRoomNotExpired(room);
 
     const round = await ctx.db.get(args.roundId);
     if (!round || round.roomId !== room._id) {
@@ -135,7 +162,13 @@ export const castVote = mutation({
     }
 
     assertVoteValueAllowed(room.scaleType, args.value);
-    const participant = await resolveVotingParticipant(ctx, room, args.participantId, args.guestToken);
+    const participant = await resolveVotingParticipant(
+      ctx,
+      room,
+      args.participantId,
+      args.guestToken,
+      args.guestOwnerToken,
+    );
 
     if (!canParticipantVoteInRoom(participant, room)) {
       if (participant.kind === "viewer") {
@@ -172,6 +205,7 @@ export const castVote = mutation({
       lastSeenAt: now,
       isActive: true,
     });
+    await ctx.db.patch(room._id, getRoomActivityPatch(room, now));
 
     const activeParticipants = await getFreshVotingParticipants(ctx, room, now);
     const votes = await ctx.db
@@ -196,9 +230,10 @@ export const castVote = mutation({
 export const forceFinish = mutation({
   args: {
     roomId: v.id("rooms"),
+    guestOwnerToken: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("rounds.forceFinish", async (ctx, args) => {
-    const { room } = await assertRoomOwner(ctx, args.roomId);
+    const { room } = await assertRoomManagementAccess(ctx, args.roomId, args.guestOwnerToken);
     await assertRoundControlRateLimit(ctx, String(room._id));
 
     if (!room.activeRoundId || room.status !== "voting") {
@@ -218,8 +253,9 @@ export const getCurrentState = query({
   args: {
     slug: v.string(),
     guestToken: v.optional(v.string()),
+    guestOwnerToken: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("rounds.getCurrentState", async (ctx, args) => {
-    return await buildRoomState(ctx, args.slug, args.guestToken);
+    return await buildRoomState(ctx, args.slug, args.guestToken, args.guestOwnerToken);
   }),
 });
