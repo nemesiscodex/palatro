@@ -11,6 +11,8 @@ import ParticipantList from "@/components/participant-list";
 import PointCardGrid from "@/components/point-card-grid";
 import RoundResults from "@/components/round-results";
 import { Button } from "@/components/ui/button";
+import { useAppSound } from "@/hooks/use-app-sound";
+import { switch002Sound } from "@/lib/switch-002";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -110,6 +112,8 @@ export default function LandingHeroDemo() {
   } | null>(null);
   const timersRef = useRef(new Set<number>());
   const sequenceIdRef = useRef(0);
+  const trackedRevealedRounds = useRef(new Set<string>());
+  const playRoundRevealSound = useAppSound(switch002Sound, { volumeMultiplier: 0.6 });
 
   function clearTimers() {
     for (const timerId of timersRef.current) {
@@ -179,7 +183,7 @@ export default function LandingHeroDemo() {
 
       const result = computeRoundResult(Object.values(votePlan), CONSENSUS_CONFIG);
       setActiveRound({
-        id: `hero-round-${nextRoundNumber}`,
+        id: `hero-round-${sequenceId}`,
         roundNumber: nextRoundNumber,
         resultType: result.resultType,
         resultValue: result.resultValue,
@@ -202,6 +206,19 @@ export default function LandingHeroDemo() {
       clearTimers();
     };
   }, []);
+
+  useEffect(() => {
+    if (status !== "revealed" || !activeRound?.id) {
+      return;
+    }
+
+    if (trackedRevealedRounds.current.has(activeRound.id)) {
+      return;
+    }
+
+    trackedRevealedRounds.current.add(activeRound.id);
+    playRoundRevealSound();
+  }, [activeRound, playRoundRevealSound, status]);
 
   const participants = joinedName
     ? [

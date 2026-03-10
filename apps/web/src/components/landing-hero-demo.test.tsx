@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const capture = vi.fn();
 const playSound = vi.fn();
+const playRevealSound = vi.fn();
 
 vi.mock("@posthog/react", () => ({
   usePostHog: () => ({
@@ -10,9 +11,14 @@ vi.mock("@posthog/react", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-app-sound", () => ({
-  useAppSound: () => playSound,
-}));
+vi.mock("@/hooks/use-app-sound", async () => {
+  const { switch002Sound } = await import("@/lib/switch-002");
+
+  return {
+    useAppSound: (sound: { dataUri: string }) =>
+      sound.dataUri === switch002Sound.dataUri ? playRevealSound : playSound,
+  };
+});
 
 import LandingHeroDemo from "./landing-hero-demo";
 
@@ -54,6 +60,7 @@ describe("LandingHeroDemo", () => {
     vi.restoreAllMocks();
     capture.mockReset();
     playSound.mockReset();
+    playRevealSound.mockReset();
   });
 
   afterEach(() => {
@@ -146,6 +153,27 @@ describe("LandingHeroDemo", () => {
     expect(screen.getByText("Round 3 result")).toBeInTheDocument();
     expect(screen.getByText("consensus")).toBeInTheDocument();
     expect(screen.getAllByText("8").length).toBeGreaterThan(1);
+  });
+
+  it("plays the reveal cue each time the demo round resolves", async () => {
+    setRandomSequence([0, 0.2, 0.4, 0.6, 0.1, 0.3, 0.5, 0.7]);
+    render(<LandingHeroDemo />);
+
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Quinn" } });
+    fireEvent.click(screen.getByRole("button", { name: "Join the table" }));
+    await flushMicrotasks();
+
+    clickCard("8");
+    expect(playRevealSound).not.toHaveBeenCalled();
+
+    await advance(1500);
+    expect(playRevealSound).toHaveBeenCalledTimes(1);
+
+    await advance(2500);
+    clickCard("8");
+
+    await advance(1500);
+    expect(playRevealSound).toHaveBeenCalledTimes(2);
   });
 
   it("switches to the special always-tie loop when the visitor selects question mark", async () => {
