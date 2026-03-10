@@ -56,7 +56,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
 
       <p className="ornate-label mb-3 text-primary/60">Open the room</p>
       <h1 className="mb-1.5 font-serif text-3xl leading-none tracking-tight lg:text-4xl">
-        Become the <span className="text-gold-gradient italic">dealer</span>
+        Become the <span className="text-gold-gradient italic  overflow-visible inline-block pr-[0.1em]">dealer</span>
       </h1>
       <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
         Create rooms, set the scale, reveal the table.

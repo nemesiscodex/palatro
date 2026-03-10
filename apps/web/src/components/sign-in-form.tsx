@@ -53,7 +53,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
 
       <p className="ornate-label mb-3 text-primary/60">Dealer return</p>
       <h1 className="mb-1.5 font-serif text-3xl leading-none tracking-tight lg:text-4xl">
-        Back to the <span className="text-gold-gradient italic">table</span>
+        Back to the <span className="text-gold-gradient italic overflow-visible inline-block pr-[0.1em]">table</span>
       </h1>
       <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
         Rejoin your rooms and run the next round.

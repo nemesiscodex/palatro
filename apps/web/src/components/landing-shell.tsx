@@ -11,7 +11,7 @@ export default function LandingShell() {
     <main className="mx-auto w-full max-w-6xl px-5 py-6 lg:py-10">
       <section className="stagger-rise mb-5 lg:mb-8">
         <h1 className="max-w-3xl font-serif text-[2.9rem] leading-[0.95] text-foreground tracking-[-0.03em] sm:text-[3.5rem] lg:text-[clamp(2.75rem,4vw,4.2rem)]">
-          Join a table. Pick a card. <span className="text-gold-gradient italic">Reveal!</span>
+          Join a table. Pick a card. <span className="text-gold-gradient italic overflow-visible inline-block pr-[0.1em]">Reveal!</span>
         </h1>
       </section>
 

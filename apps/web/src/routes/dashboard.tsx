@@ -67,7 +67,7 @@ export function DashboardPage() {
                   <h1 className="font-serif text-[2.8rem] leading-[0.9] text-foreground">
                     Run rounds
                     <br />
-                    <span className="text-gold-gradient italic">like a card room.</span>
+                    <span className="text-gold-gradient italic overflow-visible inline-block pr-[0.1em]">like a card room.</span>
                   </h1>
                   <p className="text-muted-foreground mt-4 max-w-sm text-sm leading-relaxed">
                     Build a shareable estimation table, control the reveal, and keep the room
