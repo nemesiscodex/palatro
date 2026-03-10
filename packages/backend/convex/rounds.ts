@@ -18,6 +18,7 @@ import {
   assertRoundControlRateLimit,
   assertVoteCastRateLimit,
 } from "./rateLimit";
+import { isGuestSessionParticipant } from "./pointingPoker";
 
 async function startRoundForRoom(ctx: any, roomId: Id<"rooms">, allowActiveRoundReset: boolean) {
   const { room } = await assertRoomOwner(ctx, roomId);
@@ -74,7 +75,7 @@ async function resolveVotingParticipant(
     throw new ConvexError("Participant not found");
   }
 
-  if (participant.kind === "guest") {
+  if (isGuestSessionParticipant(participant.kind)) {
     const guestParticipant = await findGuestParticipantByToken(ctx, room._id, guestToken);
     if (!guestParticipant || guestParticipant._id !== participant._id) {
       throw new ConvexError("Invalid guest session");
@@ -137,6 +138,9 @@ export const castVote = mutation({
     const participant = await resolveVotingParticipant(ctx, room, args.participantId, args.guestToken);
 
     if (!canParticipantVoteInRoom(participant, room)) {
+      if (participant.kind === "viewer") {
+        throw new ConvexError("View-only participants cannot vote");
+      }
       throw new ConvexError("Host voting is disabled for this room");
     }
 

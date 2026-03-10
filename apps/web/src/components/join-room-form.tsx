@@ -4,16 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+export type GuestJoinMode = "guest" | "viewer";
+
 interface JoinRoomFormProps {
   defaultValue?: string;
   hasPassword?: boolean;
-  onJoin: (nickname: string, password?: string) => Promise<void>;
+  onJoin: (values: { nickname: string; password?: string; joinMode: GuestJoinMode }) => Promise<void>;
 }
 
 export default function JoinRoomForm({ defaultValue = "", hasPassword = false, onJoin }: JoinRoomFormProps) {
   const [nickname, setNickname] = useState("");
   const [didEditNickname, setDidEditNickname] = useState(false);
   const [password, setPassword] = useState("");
+  const [joinMode, setJoinMode] = useState<GuestJoinMode>("guest");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const nicknameValue = didEditNickname ? nickname : defaultValue;
 
@@ -30,7 +33,9 @@ export default function JoinRoomForm({ defaultValue = "", hasPassword = false, o
       <div className="text-center">
         <h3 className="font-serif text-2xl text-foreground">Take a seat</h3>
         <p className="mt-1 text-sm text-muted-foreground/70">
-          {hasPassword ? "This table requires a password to join" : "Pick a name and join the table"}
+          {hasPassword
+            ? "This table requires a password before you can join or watch"
+            : "Pick a name, then join as a player or view only"}
         </p>
       </div>
 
@@ -44,7 +49,11 @@ export default function JoinRoomForm({ defaultValue = "", hasPassword = false, o
 
           setIsSubmitting(true);
           try {
-            await onJoin(nicknameValue, hasPassword ? password : undefined);
+            await onJoin({
+              nickname: nicknameValue,
+              password: hasPassword ? password : undefined,
+              joinMode,
+            });
           } finally {
             setIsSubmitting(false);
           }
@@ -52,16 +61,37 @@ export default function JoinRoomForm({ defaultValue = "", hasPassword = false, o
       >
         <div className="grid gap-2">
           <Label htmlFor="nickname">Your name</Label>
-            <Input
-              id="nickname"
-              value={nicknameValue}
-              onChange={(event) => {
-                setDidEditNickname(true);
-                setNickname(event.target.value);
-              }}
-              placeholder="e.g. Alex"
-              className="bg-black/10 text-center"
-            />
+          <Input
+            id="nickname"
+            value={nicknameValue}
+            onChange={(event) => {
+              setDidEditNickname(true);
+              setNickname(event.target.value);
+            }}
+            placeholder="e.g. Alex"
+            className="bg-black/10 text-center"
+          />
+        </div>
+        <div className="grid gap-2">
+          <span className="text-sm font-medium">Join as</span>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant={joinMode === "guest" ? "default" : "ghost"}
+              onClick={() => setJoinMode("guest")}
+              aria-pressed={joinMode === "guest"}
+            >
+              Player
+            </Button>
+            <Button
+              type="button"
+              variant={joinMode === "viewer" ? "default" : "ghost"}
+              onClick={() => setJoinMode("viewer")}
+              aria-pressed={joinMode === "viewer"}
+            >
+              View only
+            </Button>
+          </div>
         </div>
         {hasPassword ? (
           <div className="grid gap-2">
@@ -80,7 +110,7 @@ export default function JoinRoomForm({ defaultValue = "", hasPassword = false, o
           </div>
         ) : null}
         <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? "Joining..." : "Join the table"}
+          {isSubmitting ? "Joining..." : joinMode === "viewer" ? "Join as viewer" : "Join the table"}
         </Button>
       </form>
     </div>

@@ -20,6 +20,9 @@ export type RoundEndReason = (typeof ROUND_END_REASONS)[number];
 export const RESULT_TYPES = ["most_voted", "tie"] as const;
 export type ResultType = (typeof RESULT_TYPES)[number];
 
+export const PARTICIPANT_KINDS = ["host", "guest", "viewer"] as const;
+export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
+
 const FIBONACCI_DECK = ["?", "1", "2", "3", "5", "8", "13", "21"] as const;
 const POWERS_OF_TWO_DECK = ["?", "1", "2", "4", "8", "16", "32"] as const;
 const T_SHIRT_DECK = ["?", "XS", "S", "M", "L", "XL"] as const;
@@ -46,10 +49,15 @@ export function resolveHostVotingEnabled(value?: boolean) {
   return value ?? DEFAULT_HOST_VOTING_ENABLED;
 }
 
-export function isParticipantEligibleToVote(
-  kind: "host" | "guest",
-  hostVotingEnabled?: boolean,
-) {
+export function isGuestSessionParticipant(kind: ParticipantKind) {
+  return kind === "guest" || kind === "viewer";
+}
+
+export function isParticipantEligibleToVote(kind: ParticipantKind, hostVotingEnabled?: boolean) {
+  if (kind === "viewer") {
+    return false;
+  }
+
   if (kind === "guest") {
     return true;
   }

@@ -21,7 +21,7 @@ export default defineSchema({
     .index("by_slug", ["slug"]),
   participants: defineTable({
     roomId: v.id("rooms"),
-    kind: v.union(v.literal("host"), v.literal("guest")),
+    kind: v.union(v.literal("host"), v.literal("guest"), v.literal("viewer")),
     displayName: v.string(),
     guestTokenHash: v.optional(v.string()),
     hostUserId: v.optional(v.string()),

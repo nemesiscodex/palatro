@@ -118,6 +118,7 @@ describe("pointingPoker helpers", () => {
 
   it("excludes the host from voting when host voting is disabled", () => {
     expect(isParticipantEligibleToVote("guest", false)).toBe(true);
+    expect(isParticipantEligibleToVote("viewer", true)).toBe(false);
     expect(isParticipantEligibleToVote("host", true)).toBe(true);
     expect(isParticipantEligibleToVote("host", false)).toBe(false);
   });

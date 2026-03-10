@@ -1,4 +1,4 @@
-import { UserRoundX } from "lucide-react";
+import { Eye, UserRoundX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,7 @@ interface ParticipantListProps {
     badge?: string;
     hasVoted: boolean;
     revealedVote: string | null;
-    kind: "host" | "guest";
+    kind: "host" | "guest" | "viewer";
   }>;
   status: "idle" | "voting" | "revealed";
   canManage?: boolean;
@@ -31,7 +31,7 @@ export default function ParticipantList({
     return (
       <div className="flex flex-col items-center gap-2 py-6 text-center">
         <span className="text-2xl opacity-20">{"\u2660"}</span>
-        <p className="ornate-label text-muted-foreground/60">No players at the table</p>
+        <p className="ornate-label text-muted-foreground/60">No one is in the room yet</p>
       </div>
     );
   }
@@ -59,9 +59,11 @@ export default function ParticipantList({
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm transition-colors",
               participant.kind === "host"
                 ? "bg-primary/15 text-primary border border-primary/20"
-                : "bg-white/[0.05] text-muted-foreground border border-white/[0.08]",
+                : participant.kind === "viewer"
+                  ? "border border-accent/15 bg-accent/10 text-accent"
+                  : "bg-white/[0.05] text-muted-foreground border border-white/[0.08]",
             )}>
-              {participant.kind === "host" ? "\u2660" : suit}
+              {participant.kind === "host" ? "\u2660" : participant.kind === "viewer" ? <Eye className="size-4" /> : suit}
             </div>
 
             {/* Name + role */}
@@ -78,11 +80,15 @@ export default function ParticipantList({
                   ) : null}
                 </div>
                 <p className="text-[0.6rem] font-medium uppercase tracking-[0.2em] text-muted-foreground/60">
-                  {participant.kind === "host" ? "Dealer" : "Player"}
+                  {participant.kind === "host"
+                    ? "Dealer"
+                    : participant.kind === "viewer"
+                      ? "Viewer"
+                      : "Player"}
                 </p>
               </div>
 
-              {canManage && participant.kind === "guest" && onKick ? (
+              {canManage && participant.kind !== "host" && onKick ? (
                 <Button
                   type="button"
                   variant="ghost"

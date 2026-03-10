@@ -7,7 +7,7 @@ describe("ParticipantList", () => {
   it("renders an empty state when there are no participants", () => {
     render(<ParticipantList participants={[]} status="idle" />);
 
-    expect(screen.getByText("No players at the table")).toBeInTheDocument();
+    expect(screen.getByText("No one is in the room yet")).toBeInTheDocument();
   });
 
   it("shows voting indicators and allows kicking guests when manageable", () => {
@@ -45,5 +45,25 @@ describe("ParticipantList", () => {
     );
 
     expect(screen.getByText("8")).toBeInTheDocument();
+  });
+
+  it("renders viewers separately and allows the owner to remove them", () => {
+    const onKick = vi.fn();
+
+    render(
+      <ParticipantList
+        status="idle"
+        canManage
+        onKick={onKick}
+        participants={[
+          { id: "viewer-1", displayName: "Pat", hasVoted: false, revealedVote: null, kind: "viewer" },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Viewer")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Kick Pat"));
+
+    expect(onKick).toHaveBeenCalledWith("viewer-1");
   });
 });

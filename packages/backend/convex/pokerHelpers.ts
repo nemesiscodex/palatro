@@ -117,6 +117,24 @@ export async function getFreshVotingParticipants(ctx: Ctx, room: Doc<"rooms">, n
   return participants.filter((participant: Doc<"participants">) => canParticipantVoteInRoom(participant, room));
 }
 
+export function sortParticipantsForDisplay(participants: Doc<"participants">[]) {
+  return [...participants].sort((left, right) => {
+    if (left.kind === right.kind) {
+      return 0;
+    }
+
+    if (left.kind === "viewer") {
+      return 1;
+    }
+
+    if (right.kind === "viewer") {
+      return -1;
+    }
+
+    return 0;
+  });
+}
+
 export async function findGuestParticipantByToken(
   ctx: Ctx,
   roomId: Id<"rooms">,
@@ -236,7 +254,7 @@ export async function buildRoomState(ctx: Ctx, slug: string, guestToken?: string
     return null;
   }
   const now = Date.now();
-  const participants = await getFreshParticipants(ctx, room._id, now);
+  const participants = sortParticipantsForDisplay(await getFreshParticipants(ctx, room._id, now));
   const activeRound = room.activeRoundId ? await ctx.db.get(room.activeRoundId) : null;
   const roundVotes: Doc<"votes">[] =
     activeRound

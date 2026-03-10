@@ -18,7 +18,11 @@ describe("JoinRoomForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Join the table" }));
 
     await waitFor(() => {
-      expect(onJoin).toHaveBeenCalledWith("Alex", undefined);
+      expect(onJoin).toHaveBeenCalledWith({
+        nickname: "Alex",
+        password: undefined,
+        joinMode: "guest",
+      });
     });
   });
 
@@ -31,7 +35,28 @@ describe("JoinRoomForm", () => {
     fireEvent.click(screen.getByRole("button", { name: "Join the table" }));
 
     await waitFor(() => {
-      expect(onJoin).toHaveBeenCalledWith("Alex", "secret");
+      expect(onJoin).toHaveBeenCalledWith({
+        nickname: "Alex",
+        password: "secret",
+        joinMode: "guest",
+      });
+    });
+  });
+
+  it("can submit as a view-only participant", async () => {
+    onJoin.mockResolvedValue(undefined);
+    render(<JoinRoomForm onJoin={onJoin} />);
+
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Alex" } });
+    fireEvent.click(screen.getByRole("button", { name: "View only" }));
+    fireEvent.click(screen.getByRole("button", { name: "Join as viewer" }));
+
+    await waitFor(() => {
+      expect(onJoin).toHaveBeenCalledWith({
+        nickname: "Alex",
+        password: undefined,
+        joinMode: "viewer",
+      });
     });
   });
 

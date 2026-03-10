@@ -10,6 +10,7 @@ const routeState = {
   playSound: vi.fn(),
   mutations: {
     joinAsGuest: vi.fn(),
+    joinAsViewer: vi.fn(),
     joinAsHost: vi.fn(),
     heartbeat: vi.fn(),
     leave: vi.fn(),
@@ -53,6 +54,7 @@ vi.mock("@palatro/backend/convex/_generated/api", () => ({
     },
     participants: {
       joinAsGuest: "participants.joinAsGuest",
+      joinAsViewer: "participants.joinAsViewer",
       joinAsHost: "participants.joinAsHost",
       heartbeat: "participants.heartbeat",
       leave: "participants.leave",
@@ -75,6 +77,7 @@ vi.mock("convex/react", () => ({
   useMutation: (key: string) => {
     const map: Record<string, keyof typeof routeState.mutations> = {
       "participants.joinAsGuest": "joinAsGuest",
+      "participants.joinAsViewer": "joinAsViewer",
       "participants.joinAsHost": "joinAsHost",
       "participants.heartbeat": "heartbeat",
       "participants.leave": "leave",
@@ -166,6 +169,53 @@ describe("RoomPage", () => {
     });
     expect(window.localStorage.getItem("pointing-poker:guest-token:demo-room")).toBe("guest-123");
     expect(toastSuccess).toHaveBeenCalledWith("Joined room");
+  });
+
+  it("joins as view only and stores the guest token after a successful join", async () => {
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      deck: ["1", "2", "3"],
+      participants: [],
+      activeRound: null,
+      viewer: {
+        isOwner: false,
+        participantId: null,
+        participantKind: null,
+        canVote: false,
+        needsJoin: true,
+        currentVote: null,
+        displayName: "",
+        isAuthenticated: false,
+      },
+    };
+    routeState.mutations.joinAsViewer.mockResolvedValue({ guestToken: "viewer-123" });
+
+    render(<RoomPage slug="demo-room" />);
+
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Alex" } });
+    fireEvent.click(screen.getByRole("button", { name: "View only" }));
+    fireEvent.click(screen.getByRole("button", { name: "Join as viewer" }));
+
+    await waitFor(() => {
+      expect(routeState.mutations.joinAsViewer).toHaveBeenCalledWith({
+        slug: "demo-room",
+        nickname: "Alex",
+        guestToken: undefined,
+        password: undefined,
+      });
+    });
+    expect(window.localStorage.getItem("pointing-poker:guest-token:demo-room")).toBe("viewer-123");
+    expect(toastSuccess).toHaveBeenCalledWith("Joined as viewer");
   });
 
   it("auto-joins the host when the owner needs a seat", async () => {
@@ -500,6 +550,48 @@ describe("RoomPage", () => {
     render(<RoomPage slug="demo-room" />);
 
     expect(screen.getByText("Hosting this round. Waiting for players to vote.")).toBeInTheDocument();
+  });
+
+  it("shows a waiting message for view-only participants during voting", () => {
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "voting",
+        hasPassword: false,
+      },
+      deck: ["1", "2", "3"],
+      participants: [
+        { id: "viewer-1", displayName: "Pat", hasVoted: false, revealedVote: null, kind: "viewer" },
+      ],
+      activeRound: {
+        id: "round-1",
+        roundNumber: 1,
+        status: "voting",
+        resultType: null,
+        resultValue: null,
+      },
+      viewer: {
+        isOwner: false,
+        participantId: "viewer-1",
+        participantKind: "viewer",
+        canVote: false,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Pat",
+        isAuthenticated: false,
+      },
+    };
+
+    render(<RoomPage slug="demo-room" />);
+
+    expect(screen.getByText("Watching this round. View-only participants don't vote.")).toBeInTheDocument();
+    expect(screen.getByText("Participants")).toBeInTheDocument();
   });
 
   it("includes share metadata for room links", () => {

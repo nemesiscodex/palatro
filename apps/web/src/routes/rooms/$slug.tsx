@@ -122,8 +122,10 @@ export function RoomPage({ slug }: { slug: string }) {
   const eligibleParticipantCount = roomState?.eligibleParticipantCount ?? 0;
   const isHostOnlyViewer =
     roomState?.viewer.participantKind === "host" && !hostVotingEnabled;
+  const isViewOnlyParticipant = roomState?.viewer.participantKind === "viewer";
 
   const joinAsGuest = useMutation(apiAny.participants.joinAsGuest);
+  const joinAsViewer = useMutation(apiAny.participants.joinAsViewer);
   const joinAsHost = useMutation(apiAny.participants.joinAsHost);
   const heartbeat = useMutation(apiAny.participants.heartbeat);
   const leave = useMutation(apiAny.participants.leave);
@@ -333,7 +335,7 @@ export function RoomPage({ slug }: { slug: string }) {
                 ? "border-primary/10 bg-gradient-to-br from-primary/[0.03] to-transparent"
                 : "border-white/[0.05] bg-black/[0.08]",
             )}>
-              {/* Leave button for guests */}
+              {/* Leave button for guest sessions */}
               {guestToken && !roomState.viewer.isOwner ? (
                 <Button
                   type="button"
@@ -361,7 +363,7 @@ export function RoomPage({ slug }: { slug: string }) {
                     );
                   }}
                 >
-                  Leave table
+                  {isViewOnlyParticipant ? "Leave room" : "Leave table"}
                 </Button>
               ) : null}
 
@@ -370,9 +372,10 @@ export function RoomPage({ slug }: { slug: string }) {
                 <JoinRoomForm
                   defaultValue={roomState.viewer.displayName}
                   hasPassword={roomState.room.hasPassword}
-                  onJoin={async (nickname, password) => {
+                  onJoin={async ({ nickname, password, joinMode }) => {
                     await runBusyTask(async () => {
-                      const result = await joinAsGuest({
+                      const join = joinMode === "viewer" ? joinAsViewer : joinAsGuest;
+                      const result = await join({
                         slug,
                         nickname,
                         guestToken: guestToken ?? undefined,
@@ -380,7 +383,7 @@ export function RoomPage({ slug }: { slug: string }) {
                       });
                       writeGuestToken(slug, result.guestToken);
                       setGuestToken(result.guestToken);
-                      toast.success("Joined room");
+                      toast.success(joinMode === "viewer" ? "Joined as viewer" : "Joined room");
                     }, "Could not join room");
                   }}
                 />
@@ -423,6 +426,8 @@ export function RoomPage({ slug }: { slug: string }) {
                         ? "Results stay on the felt until the next round."
                         : isHostOnlyViewer
                           ? "Hosting this round. Waiting for players to vote."
+                          : isViewOnlyParticipant
+                            ? "Watching this round. View-only participants don't vote."
                           : "Waiting for your participant session."}
                   </p>
                 </div>
@@ -449,7 +454,7 @@ export function RoomPage({ slug }: { slug: string }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span className="text-primary/40">{"\u2665"}</span>
-              Players
+              Participants
               <span className="ml-auto rounded-full bg-white/[0.04] px-2.5 py-0.5 text-[0.6rem] font-medium text-muted-foreground/60">
                 {roomState.participants.length}
               </span>

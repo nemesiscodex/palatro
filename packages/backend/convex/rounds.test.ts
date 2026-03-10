@@ -218,4 +218,53 @@ describe("rounds.castVote", () => {
       activeRoundId: "round-1",
     });
   });
+
+  it("rejects votes from view-only participants", async () => {
+    const now = Date.now();
+    const ctx = createCtx({
+      rooms: [
+        {
+          _id: "room-1",
+          ownerUserId: "user-1",
+          scaleType: "fibonacci",
+          consensusMode: "plurality",
+          consensusThreshold: 70,
+          hostVotingEnabled: true,
+          status: "voting",
+          activeRoundId: "round-1",
+        },
+      ],
+      rounds: [
+        {
+          _id: "round-1",
+          roomId: "room-1",
+          status: "voting",
+          roundNumber: 1,
+        },
+      ],
+      participants: [
+        {
+          _id: "viewer-1",
+          roomId: "room-1",
+          kind: "viewer",
+          guestTokenHash: "viewer-token",
+          displayName: "Pat",
+          isActive: true,
+          lastSeenAt: now,
+        },
+      ],
+    });
+
+    await expect(
+      (castVote as any)._handler(ctx, {
+        roomId: "room-1",
+        roundId: "round-1",
+        participantId: "viewer-1",
+        value: "8",
+        guestToken: "viewer-token",
+      }),
+    ).rejects.toThrow("View-only participants cannot vote");
+
+    expect(ctx.db.tables.votes).toHaveLength(0);
+  });
 });

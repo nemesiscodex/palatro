@@ -14,7 +14,13 @@ import {
   getRoomBySlugOrThrow,
   requireAuthSession,
 } from "./pokerHelpers";
-import { createGuestToken, hashGuestToken, normalizeDisplayName } from "./pointingPoker";
+import {
+  createGuestToken,
+  hashGuestToken,
+  isGuestSessionParticipant,
+  normalizeDisplayName,
+  type ParticipantKind,
+} from "./pointingPoker";
 import {
   assertGuestJoinRateLimit,
   assertParticipantModerationRateLimit,
@@ -77,6 +83,89 @@ async function deactivateParticipant(ctx: any, participant: Doc<"participants">)
   await finalizeRoundIfReadyAfterSeatChange(ctx, participant.roomId, now);
 }
 
+async function joinAsGuestSessionParticipant(
+  ctx: any,
+  args: {
+    slug: string;
+    nickname: string;
+    guestToken?: string;
+    password?: string;
+  },
+  kind: Extract<ParticipantKind, "guest" | "viewer">,
+) {
+  const room = await getRoomBySlugOrThrow(ctx, args.slug);
+  const displayName = normalizeDisplayName(args.nickname);
+
+  if (!displayName) {
+    throw new ConvexError("Nickname is required");
+  }
+
+  const sessionKey = args.guestToken?.trim() || displayName.toLowerCase();
+  await assertGuestJoinRateLimit(ctx, String(room._id), sessionKey);
+
+  const persistedToken = args.guestToken?.trim() || createGuestToken();
+  const existingParticipant = await findGuestParticipantByToken(ctx, room._id, persistedToken);
+
+  if (room.password && !existingParticipant) {
+    const supplied = args.password?.trim();
+    if (!supplied || !(await verifyPassword(supplied, room.password))) {
+      throw new ConvexError("Incorrect room password");
+    }
+  }
+
+  const now = Date.now();
+  await ensureUniqueDisplayName(ctx, room._id, displayName, existingParticipant?._id);
+
+  if (existingParticipant) {
+    if (
+      room.activeRoundId &&
+      room.status === "voting" &&
+      existingParticipant.kind !== kind &&
+      isGuestSessionParticipant(existingParticipant.kind)
+    ) {
+      const existingVote = await ctx.db
+        .query("votes")
+        .withIndex("by_roundId_and_participantId", (q: any) =>
+          q.eq("roundId", room.activeRoundId).eq("participantId", existingParticipant._id),
+        )
+        .unique();
+
+      if (existingVote) {
+        await ctx.db.delete(existingVote._id);
+      }
+    }
+
+    await ctx.db.patch(existingParticipant._id, {
+      kind,
+      displayName,
+      isActive: true,
+      lastSeenAt: now,
+    });
+
+    await finalizeRoundIfReadyAfterSeatChange(ctx, room._id, now);
+
+    return {
+      participantId: existingParticipant._id,
+      guestToken: persistedToken,
+    };
+  }
+
+  const participantId = await ctx.db.insert("participants", {
+    roomId: room._id,
+    kind,
+    displayName,
+    guestTokenHash: hashGuestToken(persistedToken),
+    isActive: true,
+    lastSeenAt: now,
+    createdAt: now,
+  });
+
+  return {
+    participantId,
+    guestToken: persistedToken,
+  };
+}
+
 export const joinAsGuest = mutation({
   args: {
     slug: v.string(),
@@ -85,58 +174,19 @@ export const joinAsGuest = mutation({
     password: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("participants.joinAsGuest", async (ctx, args) => {
-    const room = await getRoomBySlugOrThrow(ctx, args.slug);
-    const displayName = normalizeDisplayName(args.nickname);
+    return await joinAsGuestSessionParticipant(ctx, args, "guest");
+  }),
+});
 
-    if (!displayName) {
-      throw new ConvexError("Nickname is required");
-    }
-
-    const sessionKey = args.guestToken?.trim() || displayName.toLowerCase();
-    await assertGuestJoinRateLimit(ctx, String(room._id), sessionKey);
-
-    // If the room has a password, verify it (skip for returning participants)
-    const persistedToken = args.guestToken?.trim() || createGuestToken();
-    const existingParticipant = await findGuestParticipantByToken(ctx, room._id, persistedToken);
-
-    if (room.password && !existingParticipant) {
-      const supplied = args.password?.trim();
-      if (!supplied || !(await verifyPassword(supplied, room.password))) {
-        throw new ConvexError("Incorrect room password");
-      }
-    }
-
-    const now = Date.now();
-
-    await ensureUniqueDisplayName(ctx, room._id, displayName, existingParticipant?._id);
-
-    if (existingParticipant) {
-      await ctx.db.patch(existingParticipant._id, {
-        displayName,
-        isActive: true,
-        lastSeenAt: now,
-      });
-
-      return {
-        participantId: existingParticipant._id,
-        guestToken: persistedToken,
-      };
-    }
-
-    const participantId = await ctx.db.insert("participants", {
-      roomId: room._id,
-      kind: "guest",
-      displayName,
-      guestTokenHash: hashGuestToken(persistedToken),
-      isActive: true,
-      lastSeenAt: now,
-      createdAt: now,
-    });
-
-    return {
-      participantId,
-      guestToken: persistedToken,
-    };
+export const joinAsViewer = mutation({
+  args: {
+    slug: v.string(),
+    nickname: v.string(),
+    guestToken: v.optional(v.string()),
+    password: v.optional(v.string()),
+  },
+  handler: withUnexpectedErrorLogging("participants.joinAsViewer", async (ctx, args) => {
+    return await joinAsGuestSessionParticipant(ctx, args, "viewer");
   }),
 });
 
@@ -199,7 +249,7 @@ export const leave = mutation({
       throw new ConvexError("Participant not found");
     }
 
-    if (participant.kind === "guest") {
+    if (isGuestSessionParticipant(participant.kind)) {
       const token = args.guestToken?.trim();
       if (!token || participant.guestTokenHash !== hashGuestToken(token)) {
         throw new ConvexError("Invalid guest session");
@@ -234,8 +284,8 @@ export const kick = mutation({
       throw new ConvexError("Participant not found");
     }
 
-    if (participant.kind !== "guest") {
-      throw new ConvexError("Only guest participants can be removed");
+    if (!isGuestSessionParticipant(participant.kind)) {
+      throw new ConvexError("Only non-host participants can be removed");
     }
 
     await deactivateParticipant(ctx, participant);
@@ -257,7 +307,7 @@ export const heartbeat = mutation({
       throw new ConvexError("Participant not found");
     }
 
-    if (participant.kind === "guest") {
+    if (isGuestSessionParticipant(participant.kind)) {
       const token = args.guestToken?.trim();
       if (!token || participant.guestTokenHash !== hashGuestToken(token)) {
         throw new ConvexError("Invalid guest session");
