@@ -9,16 +9,30 @@ export type GuestJoinMode = "guest" | "viewer";
 interface JoinRoomFormProps {
   defaultValue?: string;
   hasPassword?: boolean;
+  allowViewerJoin?: boolean;
   onJoin: (values: { nickname: string; password?: string; joinMode: GuestJoinMode }) => Promise<void>;
 }
 
-export default function JoinRoomForm({ defaultValue = "", hasPassword = false, onJoin }: JoinRoomFormProps) {
+export default function JoinRoomForm({
+  defaultValue = "",
+  hasPassword = false,
+  allowViewerJoin = true,
+  onJoin,
+}: JoinRoomFormProps) {
   const [nickname, setNickname] = useState("");
   const [didEditNickname, setDidEditNickname] = useState(false);
   const [password, setPassword] = useState("");
   const [joinMode, setJoinMode] = useState<GuestJoinMode>("guest");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const nicknameValue = didEditNickname ? nickname : defaultValue;
+  const effectiveJoinMode: GuestJoinMode = allowViewerJoin ? joinMode : "guest";
+  const helperText = hasPassword
+    ? allowViewerJoin
+      ? "This table requires a password before you can join or watch"
+      : "This table requires a password to join"
+    : allowViewerJoin
+      ? "Pick a name, then join as a player or view only"
+      : "Pick a name and join the table";
 
   return (
     <div className="flex flex-col items-center gap-5 py-4">
@@ -32,11 +46,7 @@ export default function JoinRoomForm({ defaultValue = "", hasPassword = false, o
 
       <div className="text-center">
         <h3 className="font-serif text-2xl text-foreground">Take a seat</h3>
-        <p className="mt-1 text-sm text-muted-foreground/70">
-          {hasPassword
-            ? "This table requires a password before you can join or watch"
-            : "Pick a name, then join as a player or view only"}
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground/70">{helperText}</p>
       </div>
 
       <form
@@ -52,7 +62,7 @@ export default function JoinRoomForm({ defaultValue = "", hasPassword = false, o
             await onJoin({
               nickname: nicknameValue,
               password: hasPassword ? password : undefined,
-              joinMode,
+              joinMode: effectiveJoinMode,
             });
           } finally {
             setIsSubmitting(false);
@@ -72,27 +82,29 @@ export default function JoinRoomForm({ defaultValue = "", hasPassword = false, o
             className="bg-black/10 text-center"
           />
         </div>
-        <div className="grid gap-2">
-          <span className="text-sm font-medium">Join as</span>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant={joinMode === "guest" ? "default" : "ghost"}
-              onClick={() => setJoinMode("guest")}
-              aria-pressed={joinMode === "guest"}
-            >
-              Player
-            </Button>
-            <Button
-              type="button"
-              variant={joinMode === "viewer" ? "default" : "ghost"}
-              onClick={() => setJoinMode("viewer")}
-              aria-pressed={joinMode === "viewer"}
-            >
-              View only
-            </Button>
+        {allowViewerJoin ? (
+          <div className="grid gap-2">
+            <span className="text-sm font-medium">Join as</span>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={joinMode === "guest" ? "default" : "ghost"}
+                onClick={() => setJoinMode("guest")}
+                aria-pressed={joinMode === "guest"}
+              >
+                Player
+              </Button>
+              <Button
+                type="button"
+                variant={joinMode === "viewer" ? "default" : "ghost"}
+                onClick={() => setJoinMode("viewer")}
+                aria-pressed={joinMode === "viewer"}
+              >
+                View only
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : null}
         {hasPassword ? (
           <div className="grid gap-2">
             <Label htmlFor="room-password" className="flex items-center gap-1.5">
@@ -110,7 +122,7 @@ export default function JoinRoomForm({ defaultValue = "", hasPassword = false, o
           </div>
         ) : null}
         <Button type="submit" disabled={isSubmitting} className="w-full">
-          {isSubmitting ? "Joining..." : joinMode === "viewer" ? "Join as viewer" : "Join the table"}
+          {isSubmitting ? "Joining..." : effectiveJoinMode === "viewer" ? "Join as viewer" : "Join the table"}
         </Button>
       </form>
     </div>

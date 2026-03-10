@@ -68,6 +68,8 @@ describe("LandingHeroDemo", () => {
     expect(screen.getByText("Take a seat")).toBeInTheDocument();
     expect(screen.getByLabelText("Your name")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Join the table" })).toBeInTheDocument();
+    expect(screen.queryByText("Join as")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View only" })).not.toBeInTheDocument();
   });
 
   it("joins the table with the entered name and renders the reused room components", async () => {

@@ -254,6 +254,7 @@ export default function LandingHeroDemo() {
       <CardContent className="flex flex-1 flex-col py-5">
         {!joinedName ? (
           <JoinRoomForm
+            allowViewerJoin={false}
             onJoin={async ({ nickname }) => {
               const normalizedName = normalizeDisplayName(nickname);
               if (!normalizedName) {

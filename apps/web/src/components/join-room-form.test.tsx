@@ -60,6 +60,26 @@ describe("JoinRoomForm", () => {
     });
   });
 
+  it("can disable view-only joining for player-only flows", async () => {
+    onJoin.mockResolvedValue(undefined);
+    render(<JoinRoomForm onJoin={onJoin} allowViewerJoin={false} />);
+
+    expect(screen.queryByText("Join as")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View only" })).not.toBeInTheDocument();
+    expect(screen.getByText("Pick a name and join the table")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Alex" } });
+    fireEvent.click(screen.getByRole("button", { name: "Join the table" }));
+
+    await waitFor(() => {
+      expect(onJoin).toHaveBeenCalledWith({
+        nickname: "Alex",
+        password: undefined,
+        joinMode: "guest",
+      });
+    });
+  });
+
   it("prevents double submit while pending", async () => {
     let resolveSubmit: (() => void) | undefined;
     onJoin.mockImplementation(
