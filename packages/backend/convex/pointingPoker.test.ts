@@ -2,18 +2,23 @@ import { describe, expect, it } from "vitest";
 
 import {
   ACTIVE_PARTICIPANT_STALE_MS,
+  CUSTOM_SCALE_MIN_VALUES,
   computeRoundResult,
   DEFAULT_CONSENSUS_THRESHOLD,
   DEFAULT_HOST_VOTING_ENABLED,
   createRoomSlug,
   createSlugCandidate,
+  formatCustomScaleValues,
   getDeck,
   isParticipantEligibleToVote,
   isParticipantFresh,
   normalizeDisplayName,
   normalizeConsensusThreshold,
+  normalizeCustomScaleValues,
   normalizeRoomSlug,
+  parseCustomScaleInput,
   resolveConsensusConfig,
+  resolveCustomScaleValues,
   resolveHostVotingEnabled,
 } from "./pointingPoker";
 
@@ -22,6 +27,33 @@ describe("pointingPoker helpers", () => {
     expect(getDeck("fibonacci")).toEqual(["?", "1", "2", "3", "5", "8", "13", "21"]);
     expect(getDeck("powers_of_two")).toEqual(["?", "1", "2", "4", "8", "16", "32"]);
     expect(getDeck("t_shirt")).toEqual(["?", "XS", "S", "M", "L", "XL"]);
+    expect(getDeck("custom", ["1", "2", "a"])).toEqual(["?", "1", "2", "a"]);
+  });
+
+  it("normalizes and formats custom scale values", () => {
+    expect(parseCustomScaleInput(" 1, 2, a ")).toEqual(["1", "2", "a"]);
+    expect(normalizeCustomScaleValues([" 1 ", "2", "a"])).toEqual(["1", "2", "a"]);
+    expect(resolveCustomScaleValues("custom", ["1", "2", "a"])).toEqual(["1", "2", "a"]);
+    expect(formatCustomScaleValues(["1", "2", "a"])).toBe("1, 2, a");
+    expect(resolveCustomScaleValues("fibonacci", ["1", "2", "a"])).toBeUndefined();
+  });
+
+  it("rejects invalid custom scale values", () => {
+    expect(() => normalizeCustomScaleValues(["1", "2"])).toThrow(
+      `Custom scale must include at least ${CUSTOM_SCALE_MIN_VALUES} values`,
+    );
+    expect(() => normalizeCustomScaleValues(["1", "", "2"])).toThrow(
+      "Custom scale values cannot be empty",
+    );
+    expect(() => normalizeCustomScaleValues(["1", "2", "?"])).toThrow(
+      'Do not include "?" in custom scale values',
+    );
+    expect(() => normalizeCustomScaleValues(["1", "2", "AB"])).toThrow(
+      "Custom scale values must be numbers or single characters",
+    );
+    expect(() => normalizeCustomScaleValues(["1", "2", "2"])).toThrow(
+      "Custom scale values must be unique",
+    );
   });
 
   it("normalizes display names", () => {

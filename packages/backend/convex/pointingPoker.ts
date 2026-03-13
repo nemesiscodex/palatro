@@ -1,7 +1,8 @@
 export const ACTIVE_PARTICIPANT_STALE_MS = 2 * 60 * 1000;
 
-export const SCALE_TYPES = ["fibonacci", "powers_of_two", "t_shirt"] as const;
+export const SCALE_TYPES = ["fibonacci", "powers_of_two", "t_shirt", "custom"] as const;
 export type ScaleType = (typeof SCALE_TYPES)[number];
+export const CUSTOM_SCALE_MIN_VALUES = 3;
 
 export const CONSENSUS_MODES = ["plurality", "threshold"] as const;
 export type ConsensusMode = (typeof CONSENSUS_MODES)[number];
@@ -26,6 +27,7 @@ export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
 const FIBONACCI_DECK = ["?", "1", "2", "3", "5", "8", "13", "21"] as const;
 const POWERS_OF_TWO_DECK = ["?", "1", "2", "4", "8", "16", "32"] as const;
 const T_SHIRT_DECK = ["?", "XS", "S", "M", "L", "XL"] as const;
+const CUSTOM_SCALE_NUMERIC_PATTERN = /^-?\d+(?:\.\d+)?$/;
 const T_SHIRT_RANK = {
   XS: 1,
   S: 2,
@@ -65,7 +67,68 @@ export function isParticipantEligibleToVote(kind: ParticipantKind, hostVotingEna
   return resolveHostVotingEnabled(hostVotingEnabled);
 }
 
-export function getDeck(scaleType: ScaleType) {
+function isValidCustomScaleValue(value: string) {
+  if (CUSTOM_SCALE_NUMERIC_PATTERN.test(value)) {
+    return Number.isFinite(Number(value));
+  }
+
+  return Array.from(value).length === 1 && value !== "?";
+}
+
+export function normalizeCustomScaleValues(values: string[]) {
+  const trimmedValues = values.map((value) => value.trim());
+  const nonEmptyValues = trimmedValues.filter((value) => value.length > 0);
+
+  if (nonEmptyValues.length !== trimmedValues.length) {
+    throw new Error("Custom scale values cannot be empty");
+  }
+
+  if (nonEmptyValues.length < CUSTOM_SCALE_MIN_VALUES) {
+    throw new Error(`Custom scale must include at least ${CUSTOM_SCALE_MIN_VALUES} values`);
+  }
+
+  if (nonEmptyValues.includes("?")) {
+    throw new Error('Do not include "?" in custom scale values');
+  }
+
+  const uniqueValues = new Set<string>();
+
+  for (const value of nonEmptyValues) {
+    if (!isValidCustomScaleValue(value)) {
+      throw new Error("Custom scale values must be numbers or single characters");
+    }
+
+    if (uniqueValues.has(value)) {
+      throw new Error("Custom scale values must be unique");
+    }
+
+    uniqueValues.add(value);
+  }
+
+  return nonEmptyValues;
+}
+
+export function parseCustomScaleInput(value: string) {
+  return normalizeCustomScaleValues(value.split(","));
+}
+
+export function formatCustomScaleValues(values?: string[]) {
+  return values?.join(", ") ?? "";
+}
+
+export function resolveCustomScaleValues(scaleType: ScaleType, customScaleValues?: string[]) {
+  if (scaleType !== "custom") {
+    return undefined;
+  }
+
+  return normalizeCustomScaleValues(customScaleValues ?? []);
+}
+
+export function getDeck(scaleType: ScaleType, customScaleValues?: string[]) {
+  if (scaleType === "custom") {
+    const resolvedCustomScaleValues = resolveCustomScaleValues(scaleType, customScaleValues);
+    return ["?", ...(resolvedCustomScaleValues ?? [])];
+  }
   if (scaleType === "powers_of_two") {
     return [...POWERS_OF_TWO_DECK] as string[];
   }

@@ -1,6 +1,10 @@
 import { useState } from "react";
 
-import type { ConsensusMode, ScaleType } from "@palatro/backend/convex/pointingPoker";
+import {
+  parseCustomScaleInput,
+  type ConsensusMode,
+  type ScaleType,
+} from "@palatro/backend/convex/pointingPoker";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +21,7 @@ const SCALE_OPTIONS: Array<{ label: string; value: ScaleType; icon: string }> = 
   { label: "Fibonacci", value: "fibonacci", icon: "\u2660" },
   { label: "Power of Two", value: "powers_of_two", icon: "\u2666" },
   { label: "T-Shirt", value: "t_shirt", icon: "\u2663" },
+  { label: "Custom", value: "custom", icon: "\u2665" },
 ];
 
 interface CreateRoomFormProps {
@@ -24,6 +29,7 @@ interface CreateRoomFormProps {
   onCreateRoom: (values: {
     name: string;
     scaleType: ScaleType;
+    customScaleValues?: string[];
     consensusMode: ConsensusMode;
     consensusThreshold: number;
     hostVotingEnabled: boolean;
@@ -44,15 +50,38 @@ export default function CreateRoomForm({
   const [password, setPassword] = useState("");
   const [slug, setSlug] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [customScaleInput, setCustomScaleInput] = useState("");
+  const [customScaleTouched, setCustomScaleTouched] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const canSubmit = !isSubmitting;
   const isGuestMode = mode === "guest";
+  const isCustomScale = scaleType === "custom";
+  let customScaleValues: string[] | undefined;
+  let customScaleError: string | null = null;
+
+  if (isCustomScale && customScaleInput.trim().length > 0) {
+    try {
+      customScaleValues = parseCustomScaleInput(customScaleInput);
+    } catch (error) {
+      customScaleError = error instanceof Error ? error.message : "Invalid custom scale";
+    }
+  }
+
+  const customScaleValidationMessage = customScaleTouched
+    ? (customScaleError ?? (isCustomScale && !customScaleValues ? "Enter at least 3 comma-separated values." : null))
+    : null;
+
+  const canSubmit = !isSubmitting && (!isCustomScale || !!customScaleValues);
 
   return (
     <form
       className="grid gap-4"
       onSubmit={async (event) => {
         event.preventDefault();
+        if (isCustomScale && !customScaleValues) {
+          setCustomScaleTouched(true);
+          return;
+        }
+
         if (!canSubmit) {
           return;
         }
@@ -62,6 +91,7 @@ export default function CreateRoomForm({
           await onCreateRoom({
             name,
             scaleType,
+            customScaleValues,
             consensusMode,
             consensusThreshold,
             hostVotingEnabled,
@@ -76,6 +106,8 @@ export default function CreateRoomForm({
           setPassword("");
           setSlug("");
           setShowPassword(false);
+          setCustomScaleInput("");
+          setCustomScaleTouched(false);
         } finally {
           setIsSubmitting(false);
         }
@@ -133,6 +165,34 @@ export default function CreateRoomForm({
             </button>
           ))}
         </div>
+        {isCustomScale ? (
+          <div className="grid gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3">
+            <Label htmlFor="custom-scale-values">Custom scale values</Label>
+            <Input
+              id="custom-scale-values"
+              value={customScaleInput}
+              onBlur={() => setCustomScaleTouched(true)}
+              onChange={(event) => {
+                setCustomScaleInput(event.target.value);
+                if (!customScaleTouched && event.target.value.trim().length > 0) {
+                  setCustomScaleTouched(true);
+                }
+              }}
+              placeholder="1, 2, 3"
+              className="bg-black/10"
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter at least 3 comma-separated values. Use numbers or single characters.
+              {" "}
+              {"?"}
+              {" "}
+              is added automatically.
+            </p>
+            {customScaleValidationMessage ? (
+              <p className="text-xs text-destructive">{customScaleValidationMessage}</p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-3">

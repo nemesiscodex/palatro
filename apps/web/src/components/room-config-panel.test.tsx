@@ -119,4 +119,55 @@ describe("RoomConfigPanel", () => {
 
     expect(screen.queryByText("Room password")).not.toBeInTheDocument();
   });
+
+  it("requires applying a valid custom scale before submitting it", () => {
+    const onUpdateConfig = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <RoomConfigPanel
+        scaleType="fibonacci"
+        consensusMode="plurality"
+        consensusThreshold={70}
+        hostVotingEnabled={true}
+        hasPassword={false}
+        onUpdateConfig={onUpdateConfig}
+        onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Custom/i }));
+    expect(onUpdateConfig).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Custom scale values"), { target: { value: "1, 2, a" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply custom scale" }));
+
+    expect(onUpdateConfig).toHaveBeenCalledWith({
+      scaleType: "custom",
+      customScaleValues: ["1", "2", "a"],
+      consensusMode: "plurality",
+      consensusThreshold: 70,
+      hostVotingEnabled: true,
+    });
+  });
+
+  it("shows validation feedback for invalid custom values", () => {
+    render(
+      <RoomConfigPanel
+        scaleType="fibonacci"
+        consensusMode="plurality"
+        consensusThreshold={70}
+        hostVotingEnabled={true}
+        hasPassword={false}
+        onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
+        onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Custom/i }));
+    fireEvent.change(screen.getByLabelText("Custom scale values"), { target: { value: "AA, BB, CC" } });
+    fireEvent.blur(screen.getByLabelText("Custom scale values"));
+
+    expect(screen.getByText("Custom scale values must be numbers or single characters")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply custom scale" })).toBeDisabled();
+  });
 });

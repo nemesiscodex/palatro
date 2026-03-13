@@ -21,6 +21,7 @@ describe("CreateRoomForm", () => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Sprint Alpha",
         scaleType: "fibonacci",
+        customScaleValues: undefined,
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,
@@ -44,6 +45,7 @@ describe("CreateRoomForm", () => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Sprint Beta",
         scaleType: "t_shirt",
+        customScaleValues: undefined,
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,
@@ -67,6 +69,7 @@ describe("CreateRoomForm", () => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Sprint Epsilon",
         scaleType: "fibonacci",
+        customScaleValues: undefined,
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,
@@ -128,6 +131,7 @@ describe("CreateRoomForm", () => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Sprint Theta",
         scaleType: "fibonacci",
+        customScaleValues: undefined,
         consensusMode: "threshold",
         consensusThreshold: 80,
         hostVotingEnabled: true,
@@ -150,6 +154,7 @@ describe("CreateRoomForm", () => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Sprint Lambda",
         scaleType: "fibonacci",
+        customScaleValues: undefined,
         consensusMode: "threshold",
         consensusThreshold: 51,
         hostVotingEnabled: true,
@@ -171,6 +176,7 @@ describe("CreateRoomForm", () => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Sprint Dealer",
         scaleType: "fibonacci",
+        customScaleValues: undefined,
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: false,
@@ -178,6 +184,40 @@ describe("CreateRoomForm", () => {
         slug: undefined,
       });
     });
+  });
+
+  it("submits custom scale values without asking for question mark", async () => {
+    onCreateRoom.mockResolvedValue(undefined);
+    render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
+
+    fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "Sprint Custom" } });
+    fireEvent.click(screen.getByRole("button", { name: /Custom$/ }));
+    fireEvent.change(screen.getByLabelText("Custom scale values"), { target: { value: "1, 2, a" } });
+    fireEvent.click(screen.getByRole("button", { name: "Open table" }));
+
+    await waitFor(() => {
+      expect(onCreateRoom).toHaveBeenCalledWith({
+        name: "Sprint Custom",
+        scaleType: "custom",
+        customScaleValues: ["1", "2", "a"],
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        password: undefined,
+        slug: undefined,
+      });
+    });
+  });
+
+  it("blocks invalid custom scale values", () => {
+    render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Custom$/ }));
+    fireEvent.change(screen.getByLabelText("Custom scale values"), { target: { value: "AA, BB, CC" } });
+    fireEvent.blur(screen.getByLabelText("Custom scale values"));
+
+    expect(screen.getByText("Custom scale values must be numbers or single characters")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open table" })).toBeDisabled();
   });
 
   it("hides slug and password controls in guest mode", () => {
@@ -199,6 +239,7 @@ describe("CreateRoomForm", () => {
       expect(onCreateRoom).toHaveBeenCalledWith({
         name: "Guest Dealer",
         scaleType: "fibonacci",
+        customScaleValues: undefined,
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,

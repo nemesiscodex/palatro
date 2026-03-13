@@ -25,6 +25,7 @@ import {
   normalizeConsensusThreshold,
   normalizeDisplayName,
   normalizeRoomSlug,
+  resolveCustomScaleValues,
   resolveHostVotingEnabled,
 } from "./pointingPoker";
 import {
@@ -78,10 +79,34 @@ function resolveConsensusThreshold(value: number) {
   }
 }
 
+const scaleTypeValidator = v.union(
+  v.literal("fibonacci"),
+  v.literal("powers_of_two"),
+  v.literal("t_shirt"),
+  v.literal("custom"),
+);
+
+function resolveRoomScale(
+  scaleType: "fibonacci" | "powers_of_two" | "t_shirt" | "custom",
+  customScaleValues?: string[],
+) {
+  try {
+    return {
+      scaleType,
+      customScaleValues: resolveCustomScaleValues(scaleType, customScaleValues),
+    };
+  } catch (error) {
+    throw new ConvexError(
+      error instanceof Error ? error.message : "Invalid custom scale configuration",
+    );
+  }
+}
+
 export const create = mutation({
   args: {
     name: v.string(),
-    scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
+    scaleType: scaleTypeValidator,
+    customScaleValues: v.optional(v.array(v.string())),
     consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
     consensusThreshold: v.number(),
     hostVotingEnabled: v.optional(v.boolean()),
@@ -97,6 +122,7 @@ export const create = mutation({
     const password = args.password?.trim() || undefined;
     const passwordHash = password ? await hashPassword(password) : undefined;
     const consensusThreshold = resolveConsensusThreshold(args.consensusThreshold);
+    const roomScale = resolveRoomScale(args.scaleType, args.customScaleValues);
 
     const now = Date.now();
     const roomId = await ctx.db.insert("rooms", {
@@ -104,7 +130,8 @@ export const create = mutation({
       ownerUserId: userId,
       name,
       slug,
-      scaleType: args.scaleType,
+      scaleType: roomScale.scaleType,
+      customScaleValues: roomScale.customScaleValues,
       allowUnknown: true,
       consensusMode: args.consensusMode,
       consensusThreshold,
@@ -126,7 +153,8 @@ export const create = mutation({
 export const createGuest = mutation({
   args: {
     name: v.string(),
-    scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
+    scaleType: scaleTypeValidator,
+    customScaleValues: v.optional(v.array(v.string())),
     consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
     consensusThreshold: v.number(),
     hostVotingEnabled: v.optional(v.boolean()),
@@ -158,13 +186,15 @@ export const createGuest = mutation({
     const name = resolveRoomName(args.name);
     const slug = await resolveUniqueRoomSlug(ctx);
     const consensusThreshold = resolveConsensusThreshold(args.consensusThreshold);
+    const roomScale = resolveRoomScale(args.scaleType, args.customScaleValues);
     const now = Date.now();
     const roomId = await ctx.db.insert("rooms", {
       ownerKind: "guest",
       ownerGuestTokenHash: guestOwnerTokenHash,
       name,
       slug,
-      scaleType: args.scaleType,
+      scaleType: roomScale.scaleType,
+      customScaleValues: roomScale.customScaleValues,
       allowUnknown: true,
       consensusMode: args.consensusMode,
       consensusThreshold,
@@ -224,7 +254,8 @@ export const getBySlug = query({
 export const updateConfig = mutation({
   args: {
     roomId: v.id("rooms"),
-    scaleType: v.union(v.literal("fibonacci"), v.literal("powers_of_two"), v.literal("t_shirt")),
+    scaleType: scaleTypeValidator,
+    customScaleValues: v.optional(v.array(v.string())),
     consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
     consensusThreshold: v.number(),
     hostVotingEnabled: v.optional(v.boolean()),
@@ -239,6 +270,7 @@ export const updateConfig = mutation({
     }
 
     const consensusThreshold = resolveConsensusThreshold(args.consensusThreshold);
+    const roomScale = resolveRoomScale(args.scaleType, args.customScaleValues);
     const finalHostVotingEnabled =
       args.hostVotingEnabled === undefined
         ? resolveHostVotingEnabled(room.hostVotingEnabled)
@@ -246,7 +278,8 @@ export const updateConfig = mutation({
     const now = Date.now();
 
     await ctx.db.patch(room._id, {
-      scaleType: args.scaleType,
+      scaleType: roomScale.scaleType,
+      customScaleValues: roomScale.customScaleValues,
       consensusMode: args.consensusMode,
       consensusThreshold,
       hostVotingEnabled: finalHostVotingEnabled,

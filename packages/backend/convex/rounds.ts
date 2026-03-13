@@ -161,7 +161,7 @@ export const castVote = mutation({
       throw new ConvexError("No active voting round");
     }
 
-    assertVoteValueAllowed(room.scaleType, args.value);
+    assertVoteValueAllowed(room.scaleType, room.customScaleValues, args.value);
     const participant = await resolveVotingParticipant(
       ctx,
       room,

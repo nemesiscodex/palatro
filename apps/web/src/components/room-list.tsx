@@ -24,6 +24,7 @@ const SCALE_LABELS: Record<ScaleType, string> = {
   fibonacci: "Fibonacci",
   powers_of_two: "Power of Two",
   t_shirt: "T-Shirt",
+  custom: "Custom",
 };
 
 export default function RoomList({

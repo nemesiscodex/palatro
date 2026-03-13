@@ -61,6 +61,7 @@ export default function LandingShell() {
                 onCreateRoom={async ({
                   name,
                   scaleType,
+                  customScaleValues,
                   consensusMode,
                   consensusThreshold,
                   hostVotingEnabled,
@@ -70,6 +71,7 @@ export default function LandingShell() {
                     const result = await createGuestRoom({
                       name,
                       scaleType,
+                      customScaleValues,
                       consensusMode,
                       consensusThreshold,
                       hostVotingEnabled,

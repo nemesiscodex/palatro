@@ -448,6 +448,7 @@ export async function buildRoomState(
       name: room.name,
       slug: room.slug,
       scaleType: room.scaleType,
+      customScaleValues: room.customScaleValues,
       consensusMode: consensusConfig.consensusMode,
       consensusThreshold: consensusConfig.consensusThreshold,
       hostVotingEnabled,
@@ -459,7 +460,7 @@ export async function buildRoomState(
     eligibleParticipantCount: participants.filter((participant: Doc<"participants">) =>
       canParticipantVoteInRoom(participant, room),
     ).length,
-    deck: getDeck(room.scaleType),
+    deck: getDeck(room.scaleType, room.customScaleValues),
     participants: participants.map((participant: Doc<"participants">) => {
       const vote = activeRound ? votesByParticipantId.get(participant._id) : null;
       return {
@@ -508,8 +509,12 @@ export async function buildRoomState(
   };
 }
 
-export function assertVoteValueAllowed(scaleType: Doc<"rooms">["scaleType"], value: string) {
-  if (!getDeck(scaleType).includes(value)) {
+export function assertVoteValueAllowed(
+  scaleType: Doc<"rooms">["scaleType"],
+  customScaleValues: Doc<"rooms">["customScaleValues"],
+  value: string,
+) {
+  if (!getDeck(scaleType, customScaleValues).includes(value)) {
     throw new ConvexError("Invalid vote value");
   }
 }

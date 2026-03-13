@@ -166,6 +166,39 @@ describe("guest-owned rooms", () => {
     });
   });
 
+  it("creates a guest room with a persisted custom scale", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("guest-custom-room" as `${string}-${string}-${string}-${string}-${string}`);
+    const now = 1_000_000;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const ctx = createCtx({});
+
+    await getMutationHandler<
+      {
+        name: string;
+        scaleType: "custom";
+        customScaleValues: string[];
+        consensusMode: "plurality";
+        consensusThreshold: number;
+        hostVotingEnabled: boolean;
+        guestOwnerToken: string;
+      },
+      { roomId: string; slug: string }
+    >(createGuest)._handler(ctx, {
+      name: "Guest Poker",
+      scaleType: "custom",
+      customScaleValues: ["1", "2", "a"],
+      consensusMode: "plurality",
+      consensusThreshold: 70,
+      hostVotingEnabled: true,
+      guestOwnerToken: "owner-123",
+    });
+
+    expect(ctx.db.tables.rooms[0]).toMatchObject({
+      scaleType: "custom",
+      customScaleValues: ["1", "2", "a"],
+    });
+  });
+
   it("rejects a second active guest room for the same device token", async () => {
     const now = 1_500_000;
     vi.spyOn(Date, "now").mockReturnValue(now);
@@ -328,6 +361,55 @@ describe("guest-owned rooms", () => {
       status: "revealed",
       endedReason: "forced",
     });
+  });
+
+  it("rejects invalid custom scale updates", async () => {
+    const now = 2_000_000;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const ctx = createCtx({
+      rooms: [
+        {
+          _id: "room-1",
+          ownerKind: "guest",
+          ownerGuestTokenHash: "owner-123",
+          slug: "demo-room",
+          name: "Demo",
+          scaleType: "fibonacci",
+          allowUnknown: true,
+          consensusMode: "plurality",
+          consensusThreshold: 70,
+          hostVotingEnabled: true,
+          status: "idle",
+          createdAt: now - 1_000,
+          lastActivityAt: now - 1_000,
+          guestExpiresAt: now + 10_000,
+          updatedAt: now - 1_000,
+        },
+      ],
+    });
+
+    await expect(
+      getMutationHandler<
+        {
+          roomId: string;
+          scaleType: "custom";
+          customScaleValues: string[];
+          consensusMode: "plurality";
+          consensusThreshold: number;
+          hostVotingEnabled: boolean;
+          guestOwnerToken: string;
+        },
+        unknown
+      >(updateConfig)._handler(ctx, {
+        roomId: "room-1",
+        scaleType: "custom",
+        customScaleValues: ["1", "2"],
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        guestOwnerToken: "owner-123",
+      }),
+    ).rejects.toThrow("Custom scale must include at least 3 values");
   });
 
   it("rejects password changes for guest-owned rooms", async () => {

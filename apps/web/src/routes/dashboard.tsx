@@ -101,6 +101,7 @@ export function DashboardPage() {
                     onCreateRoom={async ({
                       name,
                       scaleType,
+                      customScaleValues,
                       consensusMode,
                       consensusThreshold,
                       hostVotingEnabled,
@@ -111,6 +112,7 @@ export function DashboardPage() {
                         const result = await createRoom({
                           name,
                           scaleType,
+                          customScaleValues,
                           consensusMode,
                           consensusThreshold,
                           hostVotingEnabled,

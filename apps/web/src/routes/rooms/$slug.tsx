@@ -619,6 +619,7 @@ export function RoomPage({ slug }: { slug: string }) {
           <CardContent>
             <RoomConfigPanel
               scaleType={roomState.room.scaleType as ScaleType}
+              customScaleValues={roomState.room.customScaleValues}
               consensusMode={roomState.room.consensusMode as ConsensusMode}
               consensusThreshold={roomState.room.consensusThreshold}
               hostVotingEnabled={hostVotingEnabled}
@@ -627,6 +628,7 @@ export function RoomPage({ slug }: { slug: string }) {
               disabled={!canManage || roomState.room.status === "voting" || isBusy}
               onUpdateConfig={async ({
                 scaleType,
+                customScaleValues,
                 consensusMode,
                 consensusThreshold,
                 hostVotingEnabled,
@@ -635,6 +637,7 @@ export function RoomPage({ slug }: { slug: string }) {
                   await updateConfig({
                     roomId: roomState.room.id,
                     scaleType,
+                    customScaleValues,
                     consensusMode,
                     consensusThreshold,
                     hostVotingEnabled,

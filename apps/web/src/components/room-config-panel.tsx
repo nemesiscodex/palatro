@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { ConsensusMode, ScaleType } from "@palatro/backend/convex/pointingPoker";
+import {
+  formatCustomScaleValues,
+  parseCustomScaleInput,
+  type ConsensusMode,
+  type ScaleType,
+} from "@palatro/backend/convex/pointingPoker";
 
 import { Button } from "@/components/ui/button";
 import { useAppSound } from "@/hooks/use-app-sound";
@@ -16,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 interface RoomConfigPanelProps {
   scaleType: ScaleType;
+  customScaleValues?: string[];
   consensusMode: ConsensusMode;
   consensusThreshold: number;
   hostVotingEnabled: boolean;
@@ -24,6 +30,7 @@ interface RoomConfigPanelProps {
   disabled?: boolean;
   onUpdateConfig: (values: {
     scaleType: ScaleType;
+    customScaleValues?: string[];
     consensusMode: ConsensusMode;
     consensusThreshold: number;
     hostVotingEnabled: boolean;
@@ -35,10 +42,12 @@ const SCALE_OPTIONS: Array<{ label: string; value: ScaleType; desc: string; icon
   { label: "Fibonacci", value: "fibonacci", desc: "1, 2, 3, 5, 8, 13, 21", icon: "\u2665" },
   { label: "Power of Two", value: "powers_of_two", desc: "1, 2, 4, 8, 16, 32", icon: "\u2666" },
   { label: "T-Shirt", value: "t_shirt", desc: "XS, S, M, L, XL", icon: "\u2663" },
+  { label: "Custom", value: "custom", desc: "Numbers or single characters", icon: "\u2660" },
 ];
 
 export default function RoomConfigPanel({
   scaleType,
+  customScaleValues,
   consensusMode,
   consensusThreshold,
   hostVotingEnabled,
@@ -53,6 +62,10 @@ export default function RoomConfigPanel({
   const [passwordDraft, setPasswordDraft] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [draftScaleType, setDraftScaleType] = useState(scaleType);
+  const [draftCustomScaleValues, setDraftCustomScaleValues] = useState(customScaleValues);
+  const [customScaleInput, setCustomScaleInput] = useState(formatCustomScaleValues(customScaleValues));
+  const [customScaleTouched, setCustomScaleTouched] = useState(false);
+  const [isDraftingCustomScale, setIsDraftingCustomScale] = useState(false);
   const [draftConsensusMode, setDraftConsensusMode] = useState(consensusMode);
   const [draftConsensusThreshold, setDraftConsensusThreshold] = useState(consensusThreshold);
   const [draftHostVotingEnabled, setDraftHostVotingEnabled] = useState(hostVotingEnabled);
@@ -67,7 +80,14 @@ export default function RoomConfigPanel({
 
   useEffect(() => {
     setDraftScaleType(scaleType);
+    setIsDraftingCustomScale(false);
   }, [scaleType]);
+
+  useEffect(() => {
+    setDraftCustomScaleValues(customScaleValues);
+    setCustomScaleInput(formatCustomScaleValues(customScaleValues));
+    setCustomScaleTouched(false);
+  }, [customScaleValues]);
 
   useEffect(() => {
     setDraftConsensusMode(consensusMode);
@@ -83,12 +103,17 @@ export default function RoomConfigPanel({
 
   async function submitConfig(nextValues: {
     scaleType?: ScaleType;
+    customScaleValues?: string[];
     consensusMode?: ConsensusMode;
     consensusThreshold?: number;
     hostVotingEnabled?: boolean;
   }) {
+    const nextScaleType = nextValues.scaleType ?? draftScaleType;
     const payload = {
-      scaleType: nextValues.scaleType ?? draftScaleType,
+      scaleType: nextScaleType,
+      customScaleValues: nextScaleType === "custom"
+        ? (nextValues.customScaleValues ?? draftCustomScaleValues)
+        : undefined,
       consensusMode: nextValues.consensusMode ?? draftConsensusMode,
       consensusThreshold: nextValues.consensusThreshold ?? draftConsensusThreshold,
       hostVotingEnabled: nextValues.hostVotingEnabled ?? draftHostVotingEnabled,
@@ -98,17 +123,35 @@ export default function RoomConfigPanel({
       payload.scaleType === draftScaleType &&
       payload.consensusMode === draftConsensusMode &&
       payload.consensusThreshold === draftConsensusThreshold &&
-      payload.hostVotingEnabled === draftHostVotingEnabled
+      payload.hostVotingEnabled === draftHostVotingEnabled &&
+      JSON.stringify(payload.customScaleValues ?? []) === JSON.stringify(draftCustomScaleValues ?? [])
     ) {
       return;
     }
 
     setDraftScaleType(payload.scaleType);
+    setDraftCustomScaleValues(payload.customScaleValues);
     setDraftConsensusMode(payload.consensusMode);
     setDraftConsensusThreshold(payload.consensusThreshold);
     setDraftHostVotingEnabled(payload.hostVotingEnabled);
     await onUpdateConfig(payload);
   }
+
+  const isCustomScaleSelected = draftScaleType === "custom" || isDraftingCustomScale;
+  let parsedCustomScaleValues: string[] | undefined;
+  let customScaleError: string | null = null;
+
+  if (isCustomScaleSelected && customScaleInput.trim().length > 0) {
+    try {
+      parsedCustomScaleValues = parseCustomScaleInput(customScaleInput);
+    } catch (error) {
+      customScaleError = error instanceof Error ? error.message : "Invalid custom scale";
+    }
+  }
+
+  const customScaleValidationMessage = customScaleTouched
+    ? (customScaleError ?? (isCustomScaleSelected && !parsedCustomScaleValues ? "Enter at least 3 comma-separated values." : null))
+    : null;
 
   return (
     <div className="grid gap-5">
@@ -117,7 +160,7 @@ export default function RoomConfigPanel({
         <p className="ornate-label text-muted-foreground/70">Point scale</p>
         <div className="grid gap-2">
           {SCALE_OPTIONS.map((option) => {
-            const isActive = draftScaleType === option.value;
+            const isActive = option.value === "custom" ? isCustomScaleSelected : draftScaleType === option.value;
             return (
               <button
                 key={option.value}
@@ -129,6 +172,12 @@ export default function RoomConfigPanel({
                   }
                 }}
                 onClick={() => {
+                  if (option.value === "custom") {
+                    setIsDraftingCustomScale(true);
+                    return;
+                  }
+
+                  setIsDraftingCustomScale(false);
                   void submitConfig({ scaleType: option.value });
                 }}
                 className={cn(
@@ -155,6 +204,60 @@ export default function RoomConfigPanel({
             );
           })}
         </div>
+        {isCustomScaleSelected ? (
+          <div className="grid gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
+            <div className="grid gap-2">
+              <label
+                htmlFor="room-custom-scale-values"
+                className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-muted-foreground/70"
+              >
+                Custom scale values
+              </label>
+              <Input
+                id="room-custom-scale-values"
+                value={customScaleInput}
+                disabled={disabled}
+                onBlur={() => setCustomScaleTouched(true)}
+                onChange={(event) => {
+                  setCustomScaleInput(event.target.value);
+                  if (!customScaleTouched && event.target.value.trim().length > 0) {
+                    setCustomScaleTouched(true);
+                  }
+                }}
+                placeholder="1, 2, 3"
+                className="bg-black/10"
+              />
+              <p className="text-xs text-muted-foreground/70">
+                Enter at least 3 comma-separated values. Use numbers or single characters.
+                {" "}
+                {"?"}
+                {" "}
+                is always added first.
+              </p>
+              {customScaleValidationMessage ? (
+                <p className="text-xs text-destructive">{customScaleValidationMessage}</p>
+              ) : null}
+            </div>
+            <Button
+              type="button"
+              disabled={disabled || !parsedCustomScaleValues}
+              onClick={() => {
+                setCustomScaleTouched(true);
+                if (!parsedCustomScaleValues) {
+                  return;
+                }
+
+                setIsDraftingCustomScale(false);
+                void submitConfig({
+                  scaleType: "custom",
+                  customScaleValues: parsedCustomScaleValues,
+                });
+              }}
+            >
+              Apply custom scale
+            </Button>
+          </div>
+        ) : null}
         <p className="text-[0.6rem] uppercase tracking-[0.18em] text-muted-foreground/50">
           {disabled ? "Finish the current round to change scale" : "Changes apply instantly"}
         </p>
