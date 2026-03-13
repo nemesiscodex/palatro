@@ -2,7 +2,7 @@ import { api } from "@palatro/backend/convex/_generated/api";
 import { Dialog } from "@base-ui/react/dialog";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
-import { QrCode, X } from "lucide-react";
+import { Check, Copy, Expand, QrCode, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { usePostHog } from "@posthog/react";
@@ -106,12 +106,61 @@ function RoomRouteComponent() {
   return <RoomPage slug={slug} />;
 }
 
+function CopyUrlButton({ url, posthog, roomState, slug, playBlockedActionSound, variant = "outline", className }: {
+  url: string;
+  posthog: ReturnType<typeof usePostHog>;
+  roomState: any;
+  slug: string;
+  playBlockedActionSound: () => void;
+  variant?: "outline" | "ghost";
+  className?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <Button
+      type="button"
+      variant={variant}
+      size="sm"
+      className={cn("rounded-full gap-1.5", className)}
+      onClick={() => {
+        if (typeof navigator === "undefined" || !navigator.clipboard) return;
+        void navigator.clipboard.writeText(url)
+          .then(() => {
+            posthog.capture("room_url_copied", {
+              room_id: String(roomState.room.id),
+              room_slug: slug,
+              is_owner: roomState.viewer.isOwner,
+            });
+            setCopied(true);
+            toast.success("Room URL copied");
+            setTimeout(() => setCopied(false), 2000);
+          })
+          .catch((error: unknown) => {
+            posthog.capture("room_url_copy_failed", {
+              room_id: String(roomState.room.id),
+              room_slug: slug,
+              is_owner: roomState.viewer.isOwner,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            toast.error("Could not copy URL");
+            playBlockedActionSound();
+          });
+      }}
+    >
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+      {copied ? "Copied!" : "Copy URL"}
+    </Button>
+  );
+}
+
 export function RoomPage({ slug }: { slug: string }) {
   const apiAny = api as any;
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [guestOwnerToken, setGuestOwnerToken] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  const [isInlineQrVisible, setIsInlineQrVisible] = useState(false);
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isGeneratingQrCode, setIsGeneratingQrCode] = useState(false);
   const [qrCodeImageSrc, setQrCodeImageSrc] = useState<string | null>(null);
@@ -133,6 +182,8 @@ export function RoomPage({ slug }: { slug: string }) {
     setGuestToken(readGuestToken(slug));
     setGuestOwnerToken(readGuestOwnerToken());
     setStorageReady(true);
+    setIsInlineQrVisible(false);
+    setIsQrDialogOpen(false);
     hostJoinRequested.current = false;
     guestClaimRequested.current = false;
   }, [slug]);
@@ -391,46 +442,76 @@ export function RoomPage({ slug }: { slug: string }) {
     }
   }
 
-  async function openQrCodeDialog() {
+  async function ensureQrCodeReady() {
     if (typeof window === "undefined") {
-      return;
+      return null;
     }
 
     const nextRoomUrl = window.location.href;
     if (qrCodeImageSrc && qrCodeValue === nextRoomUrl) {
-      setIsQrDialogOpen(true);
-      return;
+      return qrCodeImageSrc;
     }
 
     setIsGeneratingQrCode(true);
 
     try {
       const { toString } = await import("qrcode");
+      const qrSize = 512;
       const qrCodeSvg = await toString(nextRoomUrl, {
         type: "svg",
-        width: 512,
+        width: qrSize,
         margin: 1,
-        errorCorrectionLevel: "M",
+        errorCorrectionLevel: "H",
         color: {
-          dark: "#24160cff",
-          light: "#f7f0d0ff",
+          dark: "#1a1c1e",
+          light: "#f7f0d0",
         },
       });
 
-      setQrCodeImageSrc(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrCodeSvg)}`);
+      // Inject logo into SVG
+      const logoSvg = `
+        <rect x="186" y="186" width="140" height="140" fill="#f7f0d0" rx="32" />
+        <path d="M256 200c-35 0-63 28-63 63 0 32 23 58 53 62v15h-25c-11 0-20 9-20 20s9 20 20 20h80c11 0 20-9 20-20s-9-20-20-20h-25v-15c30-4 53-30 53-62 0-35-28-63-63-63z" fill="#1a1c1e" />
+      `;
+      const finalSvg = qrCodeSvg.replace("</svg>", `${logoSvg}</svg>`);
+
+      const nextQrCodeImageSrc = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(finalSvg)}`;
+      setQrCodeImageSrc(nextQrCodeImageSrc);
       setQrCodeValue(nextRoomUrl);
-      setIsQrDialogOpen(true);
-      posthog.capture("room_qr_opened", {
-        room_id: String(roomState.room.id),
-        room_slug: slug,
-        is_owner: roomState.viewer.isOwner,
-      });
+      return nextQrCodeImageSrc;
     } catch (error) {
       toast.error(getUserFacingErrorMessage(error, "Could not generate QR code"));
       playBlockedActionSound();
+      return null;
     } finally {
       setIsGeneratingQrCode(false);
     }
+  }
+
+  async function toggleInlineQrCode() {
+    if (isInlineQrVisible) {
+      setIsInlineQrVisible(false);
+      return;
+    }
+
+    const qrCode = await ensureQrCodeReady();
+    if (qrCode) {
+      setIsInlineQrVisible(true);
+    }
+  }
+
+  async function openQrCodeDialog() {
+    const qrCode = await ensureQrCodeReady();
+    if (!qrCode) {
+      return;
+    }
+
+    setIsQrDialogOpen(true);
+    posthog.capture("room_qr_opened", {
+      room_id: String(roomState.room.id),
+      room_slug: slug,
+      is_owner: roomState.viewer.isOwner,
+    });
   }
 
   return (
@@ -485,51 +566,34 @@ export function RoomPage({ slug }: { slug: string }) {
               ) : null}
 
               {/* URL + copy */}
-              <code className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[0.6rem] text-muted-foreground/50 font-mono">
+              <code
+                data-testid="room-url-pill"
+                className="min-w-0 max-w-full flex-none truncate rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[0.6rem] text-muted-foreground/50 font-mono sm:max-w-[26rem] lg:max-w-[30rem]"
+                title={roomUrl}
+              >
                 {roomUrl}
               </code>
+              <CopyUrlButton
+                url={roomUrl}
+                posthog={posthog}
+                roomState={roomState}
+                slug={slug}
+                playBlockedActionSound={playBlockedActionSound}
+                variant="ghost"
+                className="min-w-0"
+              />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  if (typeof navigator === "undefined" || !navigator.clipboard) {
-                    return;
-                  }
-                  void navigator.clipboard.writeText(roomUrl)
-                    .then(() => {
-                      posthog.capture("room_url_copied", {
-                        room_id: String(roomState.room.id),
-                        room_slug: slug,
-                        is_owner: roomState.viewer.isOwner,
-                      });
-                      toast.success("Room URL copied");
-                    })
-                    .catch((error: unknown) => {
-                      posthog.capture("room_url_copy_failed", {
-                        room_id: String(roomState.room.id),
-                        room_slug: slug,
-                        is_owner: roomState.viewer.isOwner,
-                        error: error instanceof Error ? error.message : String(error),
-                      });
-                      toast.error("Could not copy URL");
-                      playBlockedActionSound();
-                    });
-                }}
-              >
-                Copy URL
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
+                className="min-w-0"
                 disabled={isGeneratingQrCode}
                 onClick={() => {
-                  void openQrCodeDialog();
+                  void toggleInlineQrCode();
                 }}
               >
                 <QrCode />
-                {isGeneratingQrCode ? "Generating..." : "QR code"}
+                {isGeneratingQrCode ? "Preparing QR..." : isInlineQrVisible ? "Hide QR" : "Show QR"}
               </Button>
             </div>
 
@@ -759,7 +823,7 @@ export function RoomPage({ slug }: { slug: string }) {
         </section>
 
         {/* Sidebar */}
-        <aside className="grid content-start gap-5">
+        <aside className="grid min-w-0 content-start gap-5">
         <Card className="stagger-rise" style={{ animationDelay: "140ms" }}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -802,6 +866,69 @@ export function RoomPage({ slug }: { slug: string }) {
                 Only the room owner can manage rounds.
               </p>
             ) : null}
+              {isInlineQrVisible ? (
+                <div
+                  data-testid="inline-qr-panel"
+                  className="stagger-rise mt-4 grid min-w-0 gap-3 overflow-hidden rounded-2xl border border-white/[0.08] bg-black/[0.14] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                >
+                  <p className="text-xs text-muted-foreground/70">
+                    Point a phone camera at the code to join this room.
+                  </p>
+
+                  {/* QR Code frame */}
+                  <div className="relative min-w-0 overflow-hidden rounded-2xl border border-black/10 bg-[#f7f0d0] p-3 shadow-[0_12px_32px_rgba(0,0,0,0.3),0_4px_12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.7)]">
+                    <div className="pointer-events-none absolute inset-0 z-10 opacity-[0.025] [background:linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.2)_50%)] [background-size:100%_3px]" />
+                    <div className="pointer-events-none absolute inset-0 z-10 shadow-[inset_0_0_30px_rgba(0,0,0,0.04)]" />
+
+                    {qrCodeImageSrc ? (
+                      <img
+                        alt={`QR code for ${roomUrl}`}
+                        className="relative z-0 mx-auto aspect-square w-full max-w-full brightness-[1.02] contrast-[1.05]"
+                        src={qrCodeImageSrc}
+                      />
+                    ) : null}
+                  </div>
+
+                  {/* URL display */}
+                  <div className="min-w-0 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2">
+                    <p
+                      data-testid="inline-qr-url"
+                      className="block min-w-0 max-w-full truncate text-[0.62rem] font-mono text-muted-foreground/40"
+                      title={roomUrl}
+                    >
+                      {roomUrl}
+                    </p>
+                  </div>
+
+                  {/* Action buttons — equal width */}
+                  <div
+                    data-testid="inline-qr-actions"
+                    className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-2 [&>*]:min-w-0"
+                  >
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-w-0 w-full rounded-full"
+                      disabled={isGeneratingQrCode}
+                      onClick={() => {
+                        void openQrCodeDialog();
+                      }}
+                    >
+                      <Expand className="size-3.5" />
+                      Full screen
+                    </Button>
+                    <CopyUrlButton
+                      url={roomUrl}
+                      posthog={posthog}
+                      roomState={roomState}
+                      slug={slug}
+                      playBlockedActionSound={playBlockedActionSound}
+                      className="min-w-0 w-full"
+                    />
+                  </div>
+                </div>
+              ) : null}
           </CardContent>
         </Card>
 
@@ -864,42 +991,71 @@ export function RoomPage({ slug }: { slug: string }) {
 
       <Dialog.Root open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md" />
-          <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),34rem)] -translate-x-1/2 -translate-y-1/2 rounded-[2rem] border border-white/[0.08] bg-[radial-gradient(circle_at_top,_rgba(218,185,100,0.18),_transparent_55%),linear-gradient(180deg,rgba(22,15,11,0.98),rgba(10,8,7,0.98))] p-5 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="ornate-label text-primary/55">Share this room</p>
-                <Dialog.Title className="mt-2 font-serif text-3xl leading-none text-foreground sm:text-4xl">
-                  Scan to open this room
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl transition-opacity duration-300" />
+          <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),36rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[2.5rem] border border-white/[0.1] bg-[radial-gradient(circle_at_top,_rgba(218,185,100,0.2),_transparent_55%),linear-gradient(180deg,rgba(22,15,11,0.98),rgba(10,8,7,0.99))] p-6 shadow-[0_40px_120px_rgba(0,0,0,0.6),0_0_0_1px_rgba(218,185,100,0.05)] sm:p-8">
+            {/* Decorative top glow */}
+            <div className="pointer-events-none absolute -top-20 left-1/2 h-40 w-[80%] -translate-x-1/2 rounded-full bg-primary/10 blur-[60px]" />
+
+            <div className="relative flex items-start justify-between gap-4">
+              <div className="stagger-rise">
+                <p className="ornate-label text-primary/60 flex items-center gap-2">
+                  <QrCode className="size-3" />
+                  Share this room
+                </p>
+                <Dialog.Title className="mt-2.5 font-serif text-3xl leading-none text-foreground sm:text-4xl">
+                  Scan to join
                 </Dialog.Title>
-                <Dialog.Description className="mt-3 max-w-md text-sm text-muted-foreground">
-                  Hold a phone camera over the code to open this room link.
+                <Dialog.Description className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground/70">
+                  Point a phone camera at the QR code to instantly open this room and join the table.
                 </Dialog.Description>
               </div>
               <Dialog.Close
                 aria-label="Close QR code dialog"
-                className="inline-flex size-10 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-muted-foreground transition-all hover:bg-white/[0.1] hover:text-foreground hover:scale-110 active:scale-95"
               >
-                <X />
+                <X className="size-4" />
               </Dialog.Close>
             </div>
 
-            <div className="mt-6 rounded-[1.75rem] border border-black/10 bg-[#f7f0d0] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:p-5">
-              {qrCodeImageSrc ? (
-                <img
-                  alt={`QR code for ${roomUrl}`}
-                  className="mx-auto aspect-square w-full max-w-[28rem]"
-                  src={qrCodeImageSrc}
-                />
-              ) : null}
+            {/* QR Code container with ambient glow */}
+            <div className="stagger-rise relative mt-8" style={{ animationDelay: "100ms" }}>
+              {/* Ambient gold glow behind QR */}
+              <div className="absolute inset-0 -m-4 rounded-[3rem] bg-primary/[0.06] blur-2xl" />
+
+              <div className="relative overflow-hidden rounded-[2rem] border border-black/20 bg-[#f7f0d0] p-5 shadow-[0_24px_64px_rgba(0,0,0,0.4),0_8px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.7)] sm:p-6">
+                {/* Subtle scanline texture */}
+                <div className="pointer-events-none absolute inset-0 z-10 opacity-[0.03] [background:linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%)] [background-size:100%_4px]" />
+                <div className="pointer-events-none absolute inset-0 z-10 shadow-[inset_0_0_60px_rgba(0,0,0,0.06)]" />
+
+                {qrCodeImageSrc ? (
+                  <img
+                    alt={`QR code for ${roomUrl}`}
+                    className="relative z-0 mx-auto aspect-square w-full max-w-[28rem] brightness-[1.02] contrast-[1.05]"
+                    src={qrCodeImageSrc}
+                  />
+                ) : null}
+              </div>
             </div>
 
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              If the camera does not react, open any QR scanner app.
-            </p>
-            <code className="mt-4 block overflow-x-auto rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3 text-center text-[0.65rem] text-muted-foreground/70">
-              {roomUrl}
-            </code>
+            {/* URL and actions */}
+            <div className="stagger-rise mt-6 space-y-4" style={{ animationDelay: "200ms" }}>
+              <div className="flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3">
+                <code className="min-w-0 flex-1 truncate text-[0.65rem] font-mono text-muted-foreground/45">
+                  {roomUrl}
+                </code>
+                <CopyUrlButton
+                  url={roomUrl}
+                  posthog={posthog}
+                  roomState={roomState}
+                  slug={slug}
+                  playBlockedActionSound={playBlockedActionSound}
+                />
+              </div>
+
+              <p className="text-center text-[0.68rem] text-muted-foreground/40">
+                If the camera doesn't react, try any QR scanner app.
+              </p>
+            </div>
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>

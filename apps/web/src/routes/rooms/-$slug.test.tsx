@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetSharedMocks, toastError, toastSuccess } from "@/test/mocks";
@@ -889,7 +889,7 @@ describe("RoomPage", () => {
     });
   });
 
-  it("opens a QR code dialog for the room URL", async () => {
+  it("shows an inline QR panel and opens fullscreen from it", async () => {
     routeState.queryValue = {
       room: {
         id: "room-1",
@@ -920,7 +920,9 @@ describe("RoomPage", () => {
 
     render(<RoomPage slug="demo-room" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "QR code" }));
+    expect(screen.getByTestId("room-url-pill")).toHaveClass("min-w-0", "max-w-full", "truncate");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show QR" }));
 
     await waitFor(() => {
       expect(qrCodeToString).toHaveBeenCalledWith(
@@ -929,13 +931,25 @@ describe("RoomPage", () => {
           type: "svg",
           width: 512,
           margin: 1,
-          errorCorrectionLevel: "M",
+          errorCorrectionLevel: "H",
+          color: {
+            dark: "#1a1c1e",
+            light: "#f7f0d0",
+          },
         }),
       );
     });
-
-    expect(await screen.findByRole("dialog", { name: "Scan to open this room" })).toBeInTheDocument();
+    expect(screen.getByText("Point a phone camera at the code to join this room.")).toBeInTheDocument();
     expect(screen.getByAltText(`QR code for ${expectedRoomUrl}`)).toBeInTheDocument();
+    expect(screen.getByTestId("inline-qr-panel")).toHaveClass("min-w-0", "overflow-hidden");
+    expect(screen.getByTestId("inline-qr-url")).toHaveClass("min-w-0", "max-w-full", "truncate");
+    expect(screen.getByTestId("inline-qr-actions")).toHaveClass("min-w-0");
+
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Scan to join" });
+    expect(within(dialog).getByAltText(`QR code for ${expectedRoomUrl}`)).toBeInTheDocument();
+    expect(qrCodeToString).toHaveBeenCalledTimes(1);
     expect(routeState.posthogCapture).toHaveBeenCalledWith("room_qr_opened", {
       room_id: "room-1",
       room_slug: "demo-room",
@@ -946,6 +960,12 @@ describe("RoomPage", () => {
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog", { name: "Scan to open this room" })).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide QR" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Point a phone camera at the code to join this room.")).not.toBeInTheDocument();
     });
   });
 
