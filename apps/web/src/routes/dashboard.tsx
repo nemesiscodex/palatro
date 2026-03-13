@@ -105,6 +105,7 @@ export function DashboardPage() {
                       consensusMode,
                       consensusThreshold,
                       hostVotingEnabled,
+                      votingTimeLimitSeconds,
                       password,
                       slug,
                     }) => {
@@ -116,6 +117,7 @@ export function DashboardPage() {
                           consensusMode,
                           consensusThreshold,
                           hostVotingEnabled,
+                          votingTimeLimitSeconds,
                           password,
                           slug,
                         });

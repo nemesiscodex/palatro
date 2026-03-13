@@ -50,6 +50,7 @@ Palatro is designed for story estimation sessions where speed matters more than 
 - TanStack Router
 - Tailwind CSS
 - shadcn/ui primitives
+- soundcn
 - Convex
 - Better Auth
 - Turborepo

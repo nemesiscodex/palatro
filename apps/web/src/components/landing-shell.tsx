@@ -12,6 +12,7 @@ import { ensureGuestOwnerToken } from "@/lib/room-session";
 import { Button } from "@/components/ui/button";
 
 export default function LandingShell() {
+  const apiAny = api as any;
   const searchState = useMemo(() => {
     if (typeof window === "undefined") {
       return {
@@ -28,7 +29,7 @@ export default function LandingShell() {
   }, []);
   const [showSignIn, setShowSignIn] = useState(searchState.mode === "signin");
   const [showGuestCreate, setShowGuestCreate] = useState(false);
-  const createGuestRoom = useMutation(api.rooms.createGuest);
+  const createGuestRoom = useMutation(apiAny.rooms.createGuest);
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-6 lg:py-10">
@@ -65,6 +66,7 @@ export default function LandingShell() {
                   consensusMode,
                   consensusThreshold,
                   hostVotingEnabled,
+                  votingTimeLimitSeconds,
                 }) => {
                   try {
                     const guestOwnerToken = ensureGuestOwnerToken();
@@ -75,6 +77,7 @@ export default function LandingShell() {
                       consensusMode,
                       consensusThreshold,
                       hostVotingEnabled,
+                      votingTimeLimitSeconds,
                       guestOwnerToken,
                     });
                     toast.success("Guest room created");

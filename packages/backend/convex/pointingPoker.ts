@@ -11,6 +11,9 @@ export const DEFAULT_CONSENSUS_THRESHOLD = 70;
 export const MIN_CONSENSUS_THRESHOLD = 51;
 export const MAX_CONSENSUS_THRESHOLD = 100;
 export const DEFAULT_HOST_VOTING_ENABLED = true;
+export const VOTING_TIME_LIMIT_PRESETS = [30, 45, 60] as const;
+export const MIN_VOTING_TIME_LIMIT_SECONDS = 1;
+export const MAX_VOTING_TIME_LIMIT_SECONDS = 60 * 60;
 
 export const ROOM_STATUSES = ["idle", "voting", "revealed"] as const;
 export type RoomStatus = (typeof ROOM_STATUSES)[number];
@@ -184,6 +187,45 @@ export function normalizeConsensusThreshold(value: number) {
   }
 
   return threshold;
+}
+
+export function normalizeVotingTimeLimitSeconds(value?: number | null) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (!Number.isFinite(value)) {
+    throw new Error("Voting time limit must be a whole number of seconds");
+  }
+
+  const seconds = Math.trunc(value);
+
+  if (seconds < MIN_VOTING_TIME_LIMIT_SECONDS || seconds > MAX_VOTING_TIME_LIMIT_SECONDS) {
+    throw new Error(
+      `Voting time limit must be between ${MIN_VOTING_TIME_LIMIT_SECONDS} and ${MAX_VOTING_TIME_LIMIT_SECONDS} seconds`,
+    );
+  }
+
+  return seconds;
+}
+
+export function getVotingDeadlineMs(startedAt: number, votingTimeLimitSeconds?: number | null) {
+  const seconds = normalizeVotingTimeLimitSeconds(votingTimeLimitSeconds);
+
+  if (seconds === undefined) {
+    return null;
+  }
+
+  return startedAt + seconds * 1000;
+}
+
+export function hasVotingTimeLimitExpired(
+  startedAt: number,
+  votingTimeLimitSeconds?: number | null,
+  now = Date.now(),
+) {
+  const deadline = getVotingDeadlineMs(startedAt, votingTimeLimitSeconds);
+  return deadline !== null && now >= deadline;
 }
 
 export function resolveConsensusConfig(config?: Partial<ConsensusConfig>): ConsensusConfig {

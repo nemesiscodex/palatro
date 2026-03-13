@@ -6,15 +6,20 @@ import {
   computeRoundResult,
   DEFAULT_CONSENSUS_THRESHOLD,
   DEFAULT_HOST_VOTING_ENABLED,
+  MAX_VOTING_TIME_LIMIT_SECONDS,
+  MIN_VOTING_TIME_LIMIT_SECONDS,
   createRoomSlug,
   createSlugCandidate,
   formatCustomScaleValues,
   getDeck,
+  getVotingDeadlineMs,
+  hasVotingTimeLimitExpired,
   isParticipantEligibleToVote,
   isParticipantFresh,
   normalizeDisplayName,
   normalizeConsensusThreshold,
   normalizeCustomScaleValues,
+  normalizeVotingTimeLimitSeconds,
   normalizeRoomSlug,
   parseCustomScaleInput,
   resolveConsensusConfig,
@@ -160,5 +165,20 @@ describe("pointingPoker helpers", () => {
     expect(normalizeConsensusThreshold(100)).toBe(100);
     expect(() => normalizeConsensusThreshold(50)).toThrow();
     expect(() => normalizeConsensusThreshold(101)).toThrow();
+  });
+
+  it("normalizes optional voting time limits", () => {
+    expect(normalizeVotingTimeLimitSeconds()).toBeUndefined();
+    expect(normalizeVotingTimeLimitSeconds(null)).toBeUndefined();
+    expect(normalizeVotingTimeLimitSeconds(45.8)).toBe(45);
+    expect(() => normalizeVotingTimeLimitSeconds(MIN_VOTING_TIME_LIMIT_SECONDS - 1)).toThrow();
+    expect(() => normalizeVotingTimeLimitSeconds(MAX_VOTING_TIME_LIMIT_SECONDS + 1)).toThrow();
+  });
+
+  it("computes voting deadlines and expiry", () => {
+    expect(getVotingDeadlineMs(1_000, undefined)).toBeNull();
+    expect(getVotingDeadlineMs(1_000, 30)).toBe(31_000);
+    expect(hasVotingTimeLimitExpired(1_000, 30, 30_999)).toBe(false);
+    expect(hasVotingTimeLimitExpired(1_000, 30, 31_000)).toBe(true);
   });
 });

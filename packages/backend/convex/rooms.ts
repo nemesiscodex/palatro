@@ -25,6 +25,7 @@ import {
   normalizeConsensusThreshold,
   normalizeDisplayName,
   normalizeRoomSlug,
+  normalizeVotingTimeLimitSeconds,
   resolveCustomScaleValues,
   resolveHostVotingEnabled,
 } from "./pointingPoker";
@@ -79,6 +80,14 @@ function resolveConsensusThreshold(value: number) {
   }
 }
 
+function resolveVotingTimeLimit(value?: number) {
+  try {
+    return normalizeVotingTimeLimitSeconds(value);
+  } catch {
+    throw new ConvexError("Voting time limit must be between 1 and 3600 seconds");
+  }
+}
+
 const scaleTypeValidator = v.union(
   v.literal("fibonacci"),
   v.literal("powers_of_two"),
@@ -110,6 +119,7 @@ export const create = mutation({
     consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
     consensusThreshold: v.number(),
     hostVotingEnabled: v.optional(v.boolean()),
+    votingTimeLimitSeconds: v.optional(v.number()),
     password: v.optional(v.string()),
     slug: v.optional(v.string()),
   },
@@ -122,6 +132,7 @@ export const create = mutation({
     const password = args.password?.trim() || undefined;
     const passwordHash = password ? await hashPassword(password) : undefined;
     const consensusThreshold = resolveConsensusThreshold(args.consensusThreshold);
+    const votingTimeLimitSeconds = resolveVotingTimeLimit(args.votingTimeLimitSeconds);
     const roomScale = resolveRoomScale(args.scaleType, args.customScaleValues);
 
     const now = Date.now();
@@ -136,6 +147,7 @@ export const create = mutation({
       consensusMode: args.consensusMode,
       consensusThreshold,
       hostVotingEnabled: resolveHostVotingEnabled(args.hostVotingEnabled),
+      votingTimeLimitSeconds,
       password: passwordHash,
       status: "idle",
       createdAt: now,
@@ -158,6 +170,7 @@ export const createGuest = mutation({
     consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
     consensusThreshold: v.number(),
     hostVotingEnabled: v.optional(v.boolean()),
+    votingTimeLimitSeconds: v.optional(v.number()),
     guestOwnerToken: v.string(),
   },
   handler: withUnexpectedErrorLogging("rooms.createGuest", async (ctx, args) => {
@@ -186,6 +199,7 @@ export const createGuest = mutation({
     const name = resolveRoomName(args.name);
     const slug = await resolveUniqueRoomSlug(ctx);
     const consensusThreshold = resolveConsensusThreshold(args.consensusThreshold);
+    const votingTimeLimitSeconds = resolveVotingTimeLimit(args.votingTimeLimitSeconds);
     const roomScale = resolveRoomScale(args.scaleType, args.customScaleValues);
     const now = Date.now();
     const roomId = await ctx.db.insert("rooms", {
@@ -199,6 +213,7 @@ export const createGuest = mutation({
       consensusMode: args.consensusMode,
       consensusThreshold,
       hostVotingEnabled: resolveHostVotingEnabled(args.hostVotingEnabled),
+      votingTimeLimitSeconds,
       status: "idle",
       createdAt: now,
       lastActivityAt: now,
@@ -259,6 +274,7 @@ export const updateConfig = mutation({
     consensusMode: v.union(v.literal("plurality"), v.literal("threshold")),
     consensusThreshold: v.number(),
     hostVotingEnabled: v.optional(v.boolean()),
+    votingTimeLimitSeconds: v.optional(v.number()),
     guestOwnerToken: v.optional(v.string()),
   },
   handler: withUnexpectedErrorLogging("rooms.updateConfig", async (ctx, args) => {
@@ -270,6 +286,7 @@ export const updateConfig = mutation({
     }
 
     const consensusThreshold = resolveConsensusThreshold(args.consensusThreshold);
+    const votingTimeLimitSeconds = resolveVotingTimeLimit(args.votingTimeLimitSeconds);
     const roomScale = resolveRoomScale(args.scaleType, args.customScaleValues);
     const finalHostVotingEnabled =
       args.hostVotingEnabled === undefined
@@ -283,6 +300,7 @@ export const updateConfig = mutation({
       consensusMode: args.consensusMode,
       consensusThreshold,
       hostVotingEnabled: finalHostVotingEnabled,
+      votingTimeLimitSeconds,
       ...getRoomActivityPatch(room, now),
     });
 

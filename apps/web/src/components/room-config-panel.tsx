@@ -18,6 +18,12 @@ import {
 } from "@/lib/consensus";
 import { select008Sound } from "@/lib/select-008";
 import { cn } from "@/lib/utils";
+import {
+  formatVotingTimeLimitLabel,
+  getVotingTimeLimitForStep,
+  getVotingTimeLimitStepIndex,
+  VOTING_TIME_LIMIT_OPTION_VALUES,
+} from "@/lib/voting-time-limit";
 
 interface RoomConfigPanelProps {
   scaleType: ScaleType;
@@ -25,6 +31,7 @@ interface RoomConfigPanelProps {
   consensusMode: ConsensusMode;
   consensusThreshold: number;
   hostVotingEnabled: boolean;
+  votingTimeLimitSeconds?: number | null;
   hasPassword: boolean;
   allowPassword?: boolean;
   disabled?: boolean;
@@ -34,6 +41,7 @@ interface RoomConfigPanelProps {
     consensusMode: ConsensusMode;
     consensusThreshold: number;
     hostVotingEnabled: boolean;
+    votingTimeLimitSeconds?: number;
   }) => Promise<void>;
   onUpdatePassword: (password: string | undefined) => Promise<void>;
 }
@@ -51,6 +59,7 @@ export default function RoomConfigPanel({
   consensusMode,
   consensusThreshold,
   hostVotingEnabled,
+  votingTimeLimitSeconds,
   hasPassword,
   allowPassword = true,
   disabled = false,
@@ -69,6 +78,9 @@ export default function RoomConfigPanel({
   const [draftConsensusMode, setDraftConsensusMode] = useState(consensusMode);
   const [draftConsensusThreshold, setDraftConsensusThreshold] = useState(consensusThreshold);
   const [draftHostVotingEnabled, setDraftHostVotingEnabled] = useState(hostVotingEnabled);
+  const [draftVotingTimeLimitSeconds, setDraftVotingTimeLimitSeconds] = useState<number | undefined>(
+    votingTimeLimitSeconds ?? undefined,
+  );
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -101,14 +113,24 @@ export default function RoomConfigPanel({
     setDraftHostVotingEnabled(hostVotingEnabled);
   }, [hostVotingEnabled]);
 
+  useEffect(() => {
+    const nextVotingTimeLimitSeconds = votingTimeLimitSeconds ?? undefined;
+    setDraftVotingTimeLimitSeconds(nextVotingTimeLimitSeconds);
+  }, [votingTimeLimitSeconds]);
+
   async function submitConfig(nextValues: {
     scaleType?: ScaleType;
     customScaleValues?: string[];
     consensusMode?: ConsensusMode;
     consensusThreshold?: number;
     hostVotingEnabled?: boolean;
+    votingTimeLimitSeconds?: number;
   }) {
     const nextScaleType = nextValues.scaleType ?? draftScaleType;
+    const hasVotingTimeLimitOverride = Object.prototype.hasOwnProperty.call(
+      nextValues,
+      "votingTimeLimitSeconds",
+    );
     const payload = {
       scaleType: nextScaleType,
       customScaleValues: nextScaleType === "custom"
@@ -117,6 +139,9 @@ export default function RoomConfigPanel({
       consensusMode: nextValues.consensusMode ?? draftConsensusMode,
       consensusThreshold: nextValues.consensusThreshold ?? draftConsensusThreshold,
       hostVotingEnabled: nextValues.hostVotingEnabled ?? draftHostVotingEnabled,
+      votingTimeLimitSeconds: hasVotingTimeLimitOverride
+        ? nextValues.votingTimeLimitSeconds
+        : draftVotingTimeLimitSeconds,
     };
 
     if (
@@ -124,6 +149,7 @@ export default function RoomConfigPanel({
       payload.consensusMode === draftConsensusMode &&
       payload.consensusThreshold === draftConsensusThreshold &&
       payload.hostVotingEnabled === draftHostVotingEnabled &&
+      payload.votingTimeLimitSeconds === draftVotingTimeLimitSeconds &&
       JSON.stringify(payload.customScaleValues ?? []) === JSON.stringify(draftCustomScaleValues ?? [])
     ) {
       return;
@@ -134,6 +160,7 @@ export default function RoomConfigPanel({
     setDraftConsensusMode(payload.consensusMode);
     setDraftConsensusThreshold(payload.consensusThreshold);
     setDraftHostVotingEnabled(payload.hostVotingEnabled);
+    setDraftVotingTimeLimitSeconds(payload.votingTimeLimitSeconds);
     await onUpdateConfig(payload);
   }
 
@@ -376,6 +403,98 @@ export default function RoomConfigPanel({
             </div>
           </div>
         ) : null}
+      </div>
+
+      <div className="grid gap-3">
+        <div className="gold-rule" />
+        <p className="ornate-label text-muted-foreground/70">Voting timer</p>
+        <div className="grid gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={disabled}
+              onMouseEnter={() => {
+                if (!disabled) {
+                  playHoverSound();
+                }
+              }}
+              onClick={() => {
+                void submitConfig({ votingTimeLimitSeconds: undefined });
+              }}
+              className={cn(
+                "rounded-full border px-4 py-2 text-[0.72rem] font-medium uppercase tracking-[0.12em] transition-all duration-200",
+                "cursor-pointer disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
+                draftVotingTimeLimitSeconds === undefined
+                  ? "border-primary/25 bg-primary/[0.06] text-foreground"
+                  : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.1] hover:bg-white/[0.04]",
+              )}
+            >
+              Timer off
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              onMouseEnter={() => {
+                if (!disabled) {
+                  playHoverSound();
+                }
+              }}
+              onClick={() => {
+                void submitConfig({ votingTimeLimitSeconds: draftVotingTimeLimitSeconds ?? 45 });
+              }}
+              className={cn(
+                "rounded-full border px-4 py-2 text-[0.72rem] font-medium uppercase tracking-[0.12em] transition-all duration-200",
+                "cursor-pointer disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
+                draftVotingTimeLimitSeconds !== undefined
+                  ? "border-primary/25 bg-primary/[0.06] text-foreground"
+                  : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.1] hover:bg-white/[0.04]",
+              )}
+            >
+              Timer on
+            </button>
+          </div>
+
+          {draftVotingTimeLimitSeconds !== undefined ? (
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+                  Time limit
+                </p>
+                <span className="rounded-full border border-primary/20 bg-primary/[0.06] px-3 py-1 text-[0.7rem] uppercase tracking-[0.12em] text-foreground">
+                  {formatVotingTimeLimitLabel(draftVotingTimeLimitSeconds)}
+                </span>
+              </div>
+              <input
+                aria-label="Voting time limit"
+                type="range"
+                min={0}
+                max={VOTING_TIME_LIMIT_OPTION_VALUES.length - 1}
+                step={1}
+                disabled={disabled}
+                value={getVotingTimeLimitStepIndex(draftVotingTimeLimitSeconds)}
+                onChange={(event) => {
+                  void submitConfig({
+                    votingTimeLimitSeconds: getVotingTimeLimitForStep(Number(event.target.value)),
+                  });
+                }}
+                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[hsl(var(--primary))] disabled:cursor-not-allowed disabled:opacity-40"
+              />
+              <div className="grid grid-cols-6 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60">
+                {VOTING_TIME_LIMIT_OPTION_VALUES.map((value) => (
+                  <span
+                    key={value}
+                    className={cn(value === draftVotingTimeLimitSeconds && "text-primary")}
+                  >
+                    {value}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground/70">
+                When time is up, anyone without a card is counted as {"?"}.
+              </p>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid gap-3">

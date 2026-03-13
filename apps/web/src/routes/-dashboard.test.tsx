@@ -107,6 +107,7 @@ describe("DashboardPage", () => {
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,
+        votingTimeLimitSeconds: undefined,
         password: undefined,
         slug: undefined,
       });

@@ -19,6 +19,7 @@ describe("RoomConfigPanel", () => {
         consensusMode="plurality"
         consensusThreshold={70}
         hostVotingEnabled={true}
+        votingTimeLimitSeconds={null}
         hasPassword={false}
         onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
@@ -37,6 +38,7 @@ describe("RoomConfigPanel", () => {
         consensusMode="plurality"
         consensusThreshold={70}
         hostVotingEnabled={true}
+        votingTimeLimitSeconds={null}
         hasPassword={false}
         onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
@@ -55,6 +57,7 @@ describe("RoomConfigPanel", () => {
         consensusMode="plurality"
         consensusThreshold={70}
         hostVotingEnabled={true}
+        votingTimeLimitSeconds={null}
         hasPassword={false}
         onUpdateConfig={onUpdateConfig}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
@@ -69,12 +72,14 @@ describe("RoomConfigPanel", () => {
       consensusMode: "threshold",
       consensusThreshold: 70,
       hostVotingEnabled: true,
+      votingTimeLimitSeconds: undefined,
     });
     expect(onUpdateConfig).toHaveBeenNthCalledWith(2, {
       scaleType: "fibonacci",
       consensusMode: "threshold",
       consensusThreshold: 60,
       hostVotingEnabled: true,
+      votingTimeLimitSeconds: undefined,
     });
   });
 
@@ -87,6 +92,7 @@ describe("RoomConfigPanel", () => {
         consensusMode="plurality"
         consensusThreshold={70}
         hostVotingEnabled={true}
+        votingTimeLimitSeconds={null}
         hasPassword={false}
         onUpdateConfig={onUpdateConfig}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
@@ -100,6 +106,7 @@ describe("RoomConfigPanel", () => {
       consensusMode: "plurality",
       consensusThreshold: 70,
       hostVotingEnabled: false,
+      votingTimeLimitSeconds: undefined,
     });
   });
 
@@ -110,6 +117,7 @@ describe("RoomConfigPanel", () => {
         consensusMode="plurality"
         consensusThreshold={70}
         hostVotingEnabled={true}
+        votingTimeLimitSeconds={null}
         hasPassword={false}
         allowPassword={false}
         onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
@@ -129,13 +137,14 @@ describe("RoomConfigPanel", () => {
         consensusMode="plurality"
         consensusThreshold={70}
         hostVotingEnabled={true}
+        votingTimeLimitSeconds={null}
         hasPassword={false}
         onUpdateConfig={onUpdateConfig}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Custom/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Custom Numbers or single characters/i }));
     expect(onUpdateConfig).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText("Custom scale values"), { target: { value: "1, 2, a" } });
@@ -147,6 +156,7 @@ describe("RoomConfigPanel", () => {
       consensusMode: "plurality",
       consensusThreshold: 70,
       hostVotingEnabled: true,
+      votingTimeLimitSeconds: undefined,
     });
   });
 
@@ -157,17 +167,80 @@ describe("RoomConfigPanel", () => {
         consensusMode="plurality"
         consensusThreshold={70}
         hostVotingEnabled={true}
+        votingTimeLimitSeconds={null}
         hasPassword={false}
         onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
         onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Custom/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Custom Numbers or single characters/i }));
     fireEvent.change(screen.getByLabelText("Custom scale values"), { target: { value: "AA, BB, CC" } });
     fireEvent.blur(screen.getByLabelText("Custom scale values"));
 
     expect(screen.getByText("Custom scale values must be numbers or single characters")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Apply custom scale" })).toBeDisabled();
+  });
+
+  it("submits preset voting timer changes through the shared config callback", () => {
+    const onUpdateConfig = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <RoomConfigPanel
+        scaleType="fibonacci"
+        consensusMode="plurality"
+        consensusThreshold={70}
+        hostVotingEnabled={true}
+        votingTimeLimitSeconds={null}
+        hasPassword={false}
+        onUpdateConfig={onUpdateConfig}
+        onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Timer on/i }));
+
+    expect(onUpdateConfig).toHaveBeenCalledWith({
+      scaleType: "fibonacci",
+      consensusMode: "plurality",
+      consensusThreshold: 70,
+      hostVotingEnabled: true,
+      votingTimeLimitSeconds: 45,
+    });
+  });
+
+  it("updates the voting timer through the shared slider", () => {
+    const onUpdateConfig = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <RoomConfigPanel
+        scaleType="fibonacci"
+        consensusMode="plurality"
+        consensusThreshold={70}
+        hostVotingEnabled={true}
+        votingTimeLimitSeconds={null}
+        hasPassword={false}
+        onUpdateConfig={onUpdateConfig}
+        onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Timer on/i }));
+    fireEvent.change(screen.getByLabelText("Voting time limit"), { target: { value: "4" } });
+
+    expect(onUpdateConfig).toHaveBeenNthCalledWith(1, {
+      scaleType: "fibonacci",
+      consensusMode: "plurality",
+      consensusThreshold: 70,
+      hostVotingEnabled: true,
+      votingTimeLimitSeconds: 45,
+    });
+    expect(onUpdateConfig).toHaveBeenNthCalledWith(2, {
+      scaleType: "fibonacci",
+      consensusMode: "plurality",
+      consensusThreshold: 70,
+      hostVotingEnabled: true,
+      votingTimeLimitSeconds: 75,
+    });
   });
 });

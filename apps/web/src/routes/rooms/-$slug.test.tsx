@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetSharedMocks, toastError, toastSuccess } from "@/test/mocks";
@@ -20,6 +20,7 @@ const routeState = {
     start: vi.fn(),
     restart: vi.fn(),
     forceFinish: vi.fn(),
+    syncTimeout: vi.fn(),
     updateConfig: vi.fn(),
     updatePassword: vi.fn(),
   },
@@ -76,6 +77,7 @@ vi.mock("@palatro/backend/convex/_generated/api", () => ({
       start: "rounds.start",
       restart: "rounds.restart",
       forceFinish: "rounds.forceFinish",
+      syncTimeout: "rounds.syncTimeout",
     },
   },
 }));
@@ -98,6 +100,7 @@ vi.mock("convex/react", () => ({
       "rounds.start": "start",
       "rounds.restart": "restart",
       "rounds.forceFinish": "forceFinish",
+      "rounds.syncTimeout": "syncTimeout",
       "rooms.updateConfig": "updateConfig",
       "rooms.updatePassword": "updatePassword",
     };
@@ -118,6 +121,7 @@ import { RoomPage, Route } from "./$slug";
 
 describe("RoomPage", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     routeState.queryValue = undefined;
     routeState.queryCalls = [];
     window.localStorage.clear();
@@ -609,6 +613,7 @@ describe("RoomPage", () => {
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,
+        votingTimeLimitSeconds: undefined,
       });
     });
 
@@ -620,6 +625,75 @@ describe("RoomPage", () => {
       });
     });
 
+    expect(routeState.playSound).toHaveBeenCalledTimes(2);
+  });
+
+  it("plays timer sounds and syncs timeout when an unanswered vote expires", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-13T12:00:00.000Z"));
+
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        votingTimeLimitSeconds: 30,
+        status: "voting",
+        hasPassword: false,
+      },
+      deck: ["?", "1", "2", "3"],
+      participants: [{ id: "guest-1", displayName: "Alex", hasVoted: false, revealedVote: null, kind: "guest" }],
+      activeRound: {
+        id: "round-1",
+        roundNumber: 1,
+        status: "voting",
+        startedAt: Date.now(),
+        votingDeadlineAt: Date.now() + 30_000,
+        resultType: null,
+        resultValue: null,
+      },
+      viewer: {
+        isOwner: false,
+        participantId: "guest-1",
+        participantKind: "guest",
+        canVote: true,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Alex",
+        isAuthenticated: false,
+      },
+    };
+    routeState.mutations.syncTimeout.mockResolvedValue(null);
+    routeState.mutations.heartbeat.mockResolvedValue(null);
+
+    render(<RoomPage slug="demo-room" />);
+
+    expect(screen.getAllByText("30s left").length).toBeGreaterThan(0);
+
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    routeState.playSound.mockClear();
+
+    await act(async () => {
+      vi.advanceTimersByTime(24_700);
+    });
+
+    expect(routeState.playSound).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText("5s left").length).toBeGreaterThan(0);
+
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(routeState.mutations.syncTimeout).toHaveBeenCalledWith({
+      roomId: "room-1",
+      roundId: "round-1",
+    });
     expect(routeState.playSound).toHaveBeenCalledTimes(2);
   });
 

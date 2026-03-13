@@ -25,6 +25,7 @@ describe("CreateRoomForm", () => {
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,
+        votingTimeLimitSeconds: undefined,
         password: undefined,
         slug: undefined,
       });
@@ -49,6 +50,7 @@ describe("CreateRoomForm", () => {
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,
+        votingTimeLimitSeconds: undefined,
         password: "deck",
         slug: undefined,
       });
@@ -73,6 +75,7 @@ describe("CreateRoomForm", () => {
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,
+        votingTimeLimitSeconds: undefined,
         password: undefined,
         slug: "Feature Board",
       });
@@ -135,6 +138,7 @@ describe("CreateRoomForm", () => {
         consensusMode: "threshold",
         consensusThreshold: 80,
         hostVotingEnabled: true,
+        votingTimeLimitSeconds: undefined,
         password: undefined,
         slug: undefined,
       });
@@ -158,6 +162,7 @@ describe("CreateRoomForm", () => {
         consensusMode: "threshold",
         consensusThreshold: 51,
         hostVotingEnabled: true,
+        votingTimeLimitSeconds: undefined,
         password: undefined,
         slug: undefined,
       });
@@ -180,6 +185,7 @@ describe("CreateRoomForm", () => {
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: false,
+        votingTimeLimitSeconds: undefined,
         password: undefined,
         slug: undefined,
       });
@@ -203,6 +209,7 @@ describe("CreateRoomForm", () => {
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,
+        votingTimeLimitSeconds: undefined,
         password: undefined,
         slug: undefined,
       });
@@ -243,9 +250,69 @@ describe("CreateRoomForm", () => {
         consensusMode: "plurality",
         consensusThreshold: 70,
         hostVotingEnabled: true,
+        votingTimeLimitSeconds: undefined,
         password: undefined,
         slug: undefined,
       });
     });
+  });
+
+  it("submits a preset voting time limit", async () => {
+    onCreateRoom.mockResolvedValue(undefined);
+    render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
+
+    fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "Sprint Timer" } });
+    fireEvent.click(screen.getByRole("button", { name: /Timer on/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Open table" }));
+
+    await waitFor(() => {
+      expect(onCreateRoom).toHaveBeenCalledWith({
+        name: "Sprint Timer",
+        scaleType: "fibonacci",
+        customScaleValues: undefined,
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        votingTimeLimitSeconds: 45,
+        password: undefined,
+        slug: undefined,
+      });
+    });
+  });
+
+  it("submits a custom voting time limit", async () => {
+    onCreateRoom.mockResolvedValue(undefined);
+    render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
+
+    fireEvent.change(screen.getByLabelText("Room name"), { target: { value: "Sprint Slider Timer" } });
+    fireEvent.click(screen.getByRole("button", { name: /Timer on/i }));
+    fireEvent.change(screen.getByLabelText("Voting time limit"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Open table" }));
+
+    await waitFor(() => {
+      expect(onCreateRoom).toHaveBeenCalledWith({
+        name: "Sprint Slider Timer",
+        scaleType: "fibonacci",
+        customScaleValues: undefined,
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        votingTimeLimitSeconds: 75,
+        password: undefined,
+        slug: undefined,
+      });
+    });
+  });
+
+  it("shows the slider only when the timer is enabled", () => {
+    render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
+
+    expect(screen.queryByLabelText("Voting time limit")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Timer on/i }));
+    expect(screen.getByLabelText("Voting time limit")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Timer off/i }));
+    expect(screen.queryByLabelText("Voting time limit")).not.toBeInTheDocument();
   });
 });

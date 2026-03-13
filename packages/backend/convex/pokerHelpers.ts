@@ -6,7 +6,9 @@ import { authComponent } from "./auth";
 import {
   computeRoundResult,
   getDeck,
+  getVotingDeadlineMs,
   hashGuestToken,
+  hasVotingTimeLimitExpired,
   isParticipantEligibleToVote,
   isParticipantFresh,
   normalizeDisplayName,
@@ -386,6 +388,48 @@ export async function finishRound(
   };
 }
 
+export async function finalizeExpiredVotingRoundIfNeeded(
+  ctx: Ctx,
+  room: Doc<"rooms">,
+  round: Doc<"rounds">,
+  now = Date.now(),
+) {
+  if (
+    room.status !== "voting" ||
+    room.activeRoundId !== round._id ||
+    round.status !== "voting" ||
+    !hasVotingTimeLimitExpired(round.startedAt, room.votingTimeLimitSeconds, now)
+  ) {
+    return false;
+  }
+
+  const activeParticipants = await getFreshVotingParticipants(ctx, room, now);
+  const existingVotes = await ctx.db
+    .query("votes")
+    .withIndex("by_roundId", (q: any) => q.eq("roundId", round._id))
+    .collect();
+  const votedParticipantIds = new Set(
+    existingVotes.map((vote: Doc<"votes">) => String(vote.participantId)),
+  );
+
+  for (const participant of activeParticipants) {
+    if (votedParticipantIds.has(String(participant._id))) {
+      continue;
+    }
+
+    await ctx.db.insert("votes", {
+      roomId: room._id,
+      roundId: round._id,
+      participantId: participant._id,
+      value: "?",
+      submittedAt: now,
+    });
+  }
+
+  await finishRound(ctx, room, round, "all_voted");
+  return true;
+}
+
 export async function buildRoomState(
   ctx: Ctx,
   slug: string,
@@ -452,6 +496,7 @@ export async function buildRoomState(
       consensusMode: consensusConfig.consensusMode,
       consensusThreshold: consensusConfig.consensusThreshold,
       hostVotingEnabled,
+      votingTimeLimitSeconds: room.votingTimeLimitSeconds ?? null,
       status: room.status,
       hasPassword: !!room.password,
       ownerKind,
@@ -477,6 +522,8 @@ export async function buildRoomState(
           id: activeRound._id,
           roundNumber: activeRound.roundNumber,
           status: activeRound.status,
+          startedAt: activeRound.startedAt,
+          votingDeadlineAt: getVotingDeadlineMs(activeRound.startedAt, room.votingTimeLimitSeconds),
           resultType: activeRound.resultType,
           resultValue: activeRound.resultValue,
           consensusReached: activeRound.consensusReached ?? activeRound.resultType === "most_voted",

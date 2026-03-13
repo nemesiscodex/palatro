@@ -16,6 +16,12 @@ import {
   getConsensusThresholdStepIndex,
 } from "@/lib/consensus";
 import { cn } from "@/lib/utils";
+import {
+  formatVotingTimeLimitLabel,
+  getVotingTimeLimitForStep,
+  getVotingTimeLimitStepIndex,
+  VOTING_TIME_LIMIT_OPTION_VALUES,
+} from "@/lib/voting-time-limit";
 
 const SCALE_OPTIONS: Array<{ label: string; value: ScaleType; icon: string }> = [
   { label: "Fibonacci", value: "fibonacci", icon: "\u2660" },
@@ -33,6 +39,7 @@ interface CreateRoomFormProps {
     consensusMode: ConsensusMode;
     consensusThreshold: number;
     hostVotingEnabled: boolean;
+    votingTimeLimitSeconds?: number;
     password?: string;
     slug?: string;
   }) => Promise<void>;
@@ -47,6 +54,7 @@ export default function CreateRoomForm({
   const [consensusMode, setConsensusMode] = useState<ConsensusMode>("plurality");
   const [consensusThreshold, setConsensusThreshold] = useState(DEFAULT_CONSENSUS_THRESHOLD);
   const [hostVotingEnabled, setHostVotingEnabled] = useState(true);
+  const [votingTimeLimitSeconds, setVotingTimeLimitSeconds] = useState<number | undefined>(undefined);
   const [password, setPassword] = useState("");
   const [slug, setSlug] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -69,7 +77,6 @@ export default function CreateRoomForm({
   const customScaleValidationMessage = customScaleTouched
     ? (customScaleError ?? (isCustomScale && !customScaleValues ? "Enter at least 3 comma-separated values." : null))
     : null;
-
   const canSubmit = !isSubmitting && (!isCustomScale || !!customScaleValues);
 
   return (
@@ -95,6 +102,7 @@ export default function CreateRoomForm({
             consensusMode,
             consensusThreshold,
             hostVotingEnabled,
+            votingTimeLimitSeconds,
             password: isGuestMode ? undefined : password.trim() || undefined,
             slug: isGuestMode ? undefined : slug.trim() || undefined,
           });
@@ -103,6 +111,7 @@ export default function CreateRoomForm({
           setConsensusMode("plurality");
           setConsensusThreshold(DEFAULT_CONSENSUS_THRESHOLD);
           setHostVotingEnabled(true);
+          setVotingTimeLimitSeconds(undefined);
           setPassword("");
           setSlug("");
           setShowPassword(false);
@@ -193,6 +202,80 @@ export default function CreateRoomForm({
             ) : null}
           </div>
         ) : null}
+      </div>
+
+      <div className="grid gap-3">
+        <p className="gap-2 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-muted-foreground/80 leading-none flex items-center select-none">
+          Voting timer
+        </p>
+        <div className="grid gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setVotingTimeLimitSeconds(undefined);
+              }}
+              className={cn(
+                "rounded-full border px-4 py-2 text-[0.72rem] font-medium uppercase tracking-[0.12em] transition-all duration-200",
+                votingTimeLimitSeconds === undefined
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.12] hover:text-foreground",
+              )}
+            >
+              Timer off
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setVotingTimeLimitSeconds(votingTimeLimitSeconds ?? 45);
+              }}
+              className={cn(
+                "rounded-full border px-4 py-2 text-[0.72rem] font-medium uppercase tracking-[0.12em] transition-all duration-200",
+                votingTimeLimitSeconds !== undefined
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-white/[0.06] bg-white/[0.02] text-muted-foreground hover:border-white/[0.12] hover:text-foreground",
+              )}
+            >
+              Timer on
+            </button>
+          </div>
+          {votingTimeLimitSeconds !== undefined ? (
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="voting-time-limit-slider">Time limit</Label>
+                <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.12em] text-primary">
+                  {formatVotingTimeLimitLabel(votingTimeLimitSeconds)}
+                </span>
+              </div>
+              <input
+                id="voting-time-limit-slider"
+                aria-label="Voting time limit"
+                type="range"
+                min={0}
+                max={VOTING_TIME_LIMIT_OPTION_VALUES.length - 1}
+                step={1}
+                value={getVotingTimeLimitStepIndex(votingTimeLimitSeconds)}
+                onChange={(event) => {
+                  setVotingTimeLimitSeconds(getVotingTimeLimitForStep(Number(event.target.value)));
+                }}
+                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[hsl(var(--primary))]"
+              />
+              <div className="grid grid-cols-6 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60">
+                {VOTING_TIME_LIMIT_OPTION_VALUES.map((value) => (
+                  <span
+                    key={value}
+                    className={cn(value === votingTimeLimitSeconds && "text-primary")}
+                  >
+                    {value}
+                  </span>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                When the timer ends, anyone who has not picked a card is counted as {"?"}.
+              </p>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid gap-3">

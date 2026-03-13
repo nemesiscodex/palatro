@@ -6,7 +6,7 @@ vi.mock("./rateLimit", () => ({
 }));
 
 import { authComponent } from "./auth";
-import { castVote } from "./rounds";
+import { castVote, syncTimeout } from "./rounds";
 
 const authState = {
   user: { _id: "user-1" },
@@ -90,6 +90,7 @@ function createCtx(seed: Partial<Record<TableName, any[]>>) {
 
 describe("rounds.castVote", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     authState.user = { _id: "user-1" };
     vi.spyOn(authComponent, "safeGetAuthUser").mockImplementation(async () => authState.user as any);
   });
@@ -266,5 +267,158 @@ describe("rounds.castVote", () => {
     ).rejects.toThrow("View-only participants cannot vote");
 
     expect(ctx.db.tables.votes).toHaveLength(0);
+  });
+
+  it("defaults missing votes to question mark when the timer expires", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(31_000);
+
+    const ctx = createCtx({
+      rooms: [
+        {
+          _id: "room-1",
+          ownerUserId: "user-1",
+          scaleType: "fibonacci",
+          consensusMode: "plurality",
+          consensusThreshold: 70,
+          hostVotingEnabled: true,
+          votingTimeLimitSeconds: 30,
+          status: "voting",
+          activeRoundId: "round-1",
+        },
+      ],
+      rounds: [
+        {
+          _id: "round-1",
+          roomId: "room-1",
+          status: "voting",
+          roundNumber: 1,
+          startedAt: 0,
+          endedReason: null,
+          resultType: null,
+          resultValue: null,
+        },
+      ],
+      participants: [
+        {
+          _id: "guest-1",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token-1",
+          displayName: "Alex",
+          isActive: true,
+          lastSeenAt: 31_000,
+        },
+        {
+          _id: "guest-2",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token-2",
+          displayName: "Sam",
+          isActive: true,
+          lastSeenAt: 31_000,
+        },
+      ],
+      votes: [
+        {
+          _id: "vote-1",
+          roomId: "room-1",
+          roundId: "round-1",
+          participantId: "guest-1",
+          value: "5",
+          submittedAt: 20_000,
+        },
+      ],
+    });
+
+    await (syncTimeout as any)._handler(ctx, {
+      roomId: "room-1",
+      roundId: "round-1",
+    });
+
+    expect(ctx.db.tables.votes).toEqual([
+      expect.objectContaining({
+        participantId: "guest-1",
+        value: "5",
+      }),
+      expect.objectContaining({
+        participantId: "guest-2",
+        value: "?",
+        submittedAt: 31_000,
+      }),
+    ]);
+    expect(ctx.db.tables.rounds[0]).toMatchObject({
+      _id: "round-1",
+      status: "revealed",
+      endedReason: "all_voted",
+      resultType: "most_voted",
+      resultValue: "5",
+      consensusReached: true,
+    });
+  });
+
+  it("rejects late votes after expiring the round", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(31_000);
+
+    const ctx = createCtx({
+      rooms: [
+        {
+          _id: "room-1",
+          ownerUserId: "user-1",
+          scaleType: "fibonacci",
+          consensusMode: "plurality",
+          consensusThreshold: 70,
+          hostVotingEnabled: true,
+          votingTimeLimitSeconds: 30,
+          status: "voting",
+          activeRoundId: "round-1",
+        },
+      ],
+      rounds: [
+        {
+          _id: "round-1",
+          roomId: "room-1",
+          status: "voting",
+          roundNumber: 1,
+          startedAt: 0,
+          endedReason: null,
+          resultType: null,
+          resultValue: null,
+        },
+      ],
+      participants: [
+        {
+          _id: "guest-1",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token",
+          displayName: "Alex",
+          isActive: true,
+          lastSeenAt: 31_000,
+        },
+      ],
+    });
+
+    await expect(
+      (castVote as any)._handler(ctx, {
+        roomId: "room-1",
+        roundId: "round-1",
+        participantId: "guest-1",
+        value: "8",
+        guestToken: "guest-token",
+      }),
+    ).rejects.toThrow("Voting time limit has expired");
+
+    expect(ctx.db.tables.votes).toEqual([
+      expect.objectContaining({
+        participantId: "guest-1",
+        value: "?",
+        submittedAt: 31_000,
+      }),
+    ]);
+    expect(ctx.db.tables.rounds[0]).toMatchObject({
+      _id: "round-1",
+      status: "revealed",
+      endedReason: "all_voted",
+    });
   });
 });

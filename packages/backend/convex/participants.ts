@@ -7,6 +7,7 @@ import { verifyPassword } from "./passwordUtils";
 import {
   assertRoomManagementAccess,
   ensureUniqueDisplayName,
+  finalizeExpiredVotingRoundIfNeeded,
   findGuestParticipantByToken,
   findHostParticipantByGuestOwnerToken,
   findHostParticipantByUserId,
@@ -353,6 +354,13 @@ export const heartbeat = mutation({
     const room = await ctx.db.get(args.roomId);
     if (room) {
       await ctx.db.patch(args.roomId, getRoomActivityPatch(room, now));
+
+      if (room.activeRoundId && room.status === "voting") {
+        const round = await ctx.db.get(room.activeRoundId);
+        if (round && round.status === "voting") {
+          await finalizeExpiredVotingRoundIfNeeded(ctx, room, round, now);
+        }
+      }
     }
 
     return null;

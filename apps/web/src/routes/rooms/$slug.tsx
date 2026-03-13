@@ -18,6 +18,8 @@ import { useAppSound } from "@/hooks/use-app-sound";
 import { bong001Sound } from "@/lib/bong-001";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GENERIC_UNEXPECTED_ERROR_MESSAGE, getUserFacingErrorMessage } from "@/lib/errors";
+import { pluck001Sound } from "@/lib/pluck-001";
+import { pluck002Sound } from "@/lib/pluck-002";
 import {
   clearGuestToken,
   readGuestOwnerToken,
@@ -26,6 +28,7 @@ import {
 } from "@/lib/room-session";
 import { getSiteUrl } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
+import { formatVotingCountdown, formatVotingTimeLimitLabel } from "@/lib/voting-time-limit";
 import { switch002Sound } from "@/lib/switch-002";
 import { switch007Sound } from "@/lib/switch-007";
 
@@ -111,9 +114,14 @@ export function RoomPage({ slug }: { slug: string }) {
   const hostJoinRequested = useRef(false);
   const guestClaimRequested = useRef(false);
   const trackedDoneRounds = useRef(new Set<string>());
+  const warnedTimerRounds = useRef(new Set<string>());
+  const syncedTimeoutRounds = useRef(new Set<string>());
   const playBlockedActionSound = useAppSound(bong001Sound, { volumeMultiplier: 0.55 });
   const playRoundRevealSound = useAppSound(switch002Sound, { volumeMultiplier: 0.6 });
   const playConfigChangedSound = useAppSound(switch007Sound, { volumeMultiplier: 0.6 });
+  const playTimerWarningSound = useAppSound(pluck002Sound, { volumeMultiplier: 0.55 });
+  const playTimerExpiredSound = useAppSound(pluck001Sound, { volumeMultiplier: 0.7 });
+  const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     setGuestToken(readGuestToken(slug));
@@ -145,6 +153,7 @@ export function RoomPage({ slug }: { slug: string }) {
   const startRound = useMutation(apiAny.rounds.start);
   const restartRound = useMutation(apiAny.rounds.restart);
   const forceFinish = useMutation(apiAny.rounds.forceFinish);
+  const syncTimeout = useMutation(apiAny.rounds.syncTimeout);
   const updateConfig = useMutation(apiAny.rooms.updateConfig);
   const updatePassword = useMutation(apiAny.rooms.updatePassword);
   const claimGuestOwnership = useMutation(apiAny.rooms.claimGuestOwnership);
@@ -201,6 +210,10 @@ export function RoomPage({ slug }: { slug: string }) {
   }, [claimGuestOwnership, guestOwnerToken, roomState]);
 
   useEffect(() => {
+    setCountdownNowMs(Date.now());
+  }, [roomState?.activeRound?.id, roomState?.room.status]);
+
+  useEffect(() => {
     if (!roomState?.viewer.participantId) {
       return;
     }
@@ -218,6 +231,78 @@ export function RoomPage({ slug }: { slug: string }) {
       window.clearInterval(interval);
     };
   }, [guestOwnerToken, guestToken, heartbeat, roomState]);
+
+  const activeRoundId = roomState?.activeRound ? String(roomState.activeRound.id) : null;
+  const votingDeadlineAt =
+    roomState?.room.status === "voting" && roomState.activeRound
+      ? roomState.activeRound.votingDeadlineAt ?? null
+      : null;
+  const remainingVotingSeconds =
+    votingDeadlineAt === null
+      ? null
+      : Math.max(0, Math.ceil((votingDeadlineAt - countdownNowMs) / 1000));
+
+  useEffect(() => {
+    if (votingDeadlineAt === null) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setCountdownNowMs(Date.now());
+    }, 250);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [votingDeadlineAt]);
+
+  useEffect(() => {
+    if (
+      !roomState ||
+      roomState.room.status !== "voting" ||
+      !activeRoundId ||
+      remainingVotingSeconds === null ||
+      remainingVotingSeconds > 5 ||
+      remainingVotingSeconds === 0 ||
+      roomState.viewer.currentVote
+    ) {
+      return;
+    }
+
+    if (warnedTimerRounds.current.has(activeRoundId)) {
+      return;
+    }
+
+    warnedTimerRounds.current.add(activeRoundId);
+    playTimerWarningSound();
+  }, [activeRoundId, playTimerWarningSound, remainingVotingSeconds, roomState]);
+
+  useEffect(() => {
+    if (
+      !roomState ||
+      roomState.room.status !== "voting" ||
+      !roomState.activeRound ||
+      !activeRoundId ||
+      remainingVotingSeconds !== 0
+    ) {
+      return;
+    }
+
+    if (syncedTimeoutRounds.current.has(activeRoundId)) {
+      return;
+    }
+
+    syncedTimeoutRounds.current.add(activeRoundId);
+
+    if (!roomState.viewer.currentVote) {
+      playTimerExpiredSound();
+    }
+
+    void syncTimeout({
+      roomId: roomState.room.id,
+      roundId: roomState.activeRound.id,
+    }).catch(() => null);
+  }, [activeRoundId, playTimerExpiredSound, remainingVotingSeconds, roomState, syncTimeout]);
 
   useEffect(() => {
     if (
@@ -280,6 +365,7 @@ export function RoomPage({ slug }: { slug: string }) {
   const showJoinForm = roomState.viewer.needsJoin && !roomState.viewer.isOwner;
   const isVoting = roomState.room.status === "voting";
   const isRevealed = roomState.room.status === "revealed";
+  const hasVotingTimer = roomState.room.votingTimeLimitSeconds != null;
 
   async function runBusyTask(task: () => Promise<unknown>, errorMessage: string) {
     if (isBusy) {
@@ -331,6 +417,22 @@ export function RoomPage({ slug }: { slug: string }) {
               )} />
               {isVoting ? "Live" : isRevealed ? "Revealed" : "Idle"}
             </span>
+
+            {hasVotingTimer ? (
+              <span className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.18em]",
+                isVoting && remainingVotingSeconds !== null
+                  ? remainingVotingSeconds <= 5
+                    ? "bg-amber-500/15 text-amber-200"
+                    : "bg-white/[0.04] text-muted-foreground/70"
+                  : "bg-white/[0.04] text-muted-foreground/70",
+              )}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current/70" />
+                {isVoting && remainingVotingSeconds !== null
+                  ? formatVotingCountdown(remainingVotingSeconds)
+                  : `Timer ${formatVotingTimeLimitLabel(roomState.room.votingTimeLimitSeconds)}`}
+              </span>
+            ) : null}
 
             {/* URL + copy */}
             <code className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[0.6rem] text-muted-foreground/50 font-mono">
@@ -414,6 +516,27 @@ export function RoomPage({ slug }: { slug: string }) {
                 ? "border-primary/10 bg-gradient-to-br from-primary/[0.03] to-transparent"
                 : "border-white/[0.05] bg-black/[0.08]",
             )}>
+              {isVoting && hasVotingTimer && remainingVotingSeconds !== null ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-black/[0.12] px-4 py-3">
+                  <div>
+                    <p className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+                      Round timer
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Unanswered votes become {"?"} when the clock hits zero.
+                    </p>
+                  </div>
+                  <span className={cn(
+                    "rounded-full border px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.12em]",
+                    remainingVotingSeconds <= 5
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                      : "border-primary/20 bg-primary/10 text-primary",
+                  )}>
+                    {formatVotingCountdown(remainingVotingSeconds)}
+                  </span>
+                </div>
+              ) : null}
+
               {/* Leave button for guest sessions */}
               {guestToken && !roomState.viewer.isOwner ? (
                 <Button
@@ -623,6 +746,7 @@ export function RoomPage({ slug }: { slug: string }) {
               consensusMode={roomState.room.consensusMode as ConsensusMode}
               consensusThreshold={roomState.room.consensusThreshold}
               hostVotingEnabled={hostVotingEnabled}
+              votingTimeLimitSeconds={roomState.room.votingTimeLimitSeconds}
               hasPassword={roomState.room.hasPassword}
               allowPassword={roomState.room.ownerKind !== "guest"}
               disabled={!canManage || roomState.room.status === "voting" || isBusy}
@@ -632,6 +756,7 @@ export function RoomPage({ slug }: { slug: string }) {
                 consensusMode,
                 consensusThreshold,
                 hostVotingEnabled,
+                votingTimeLimitSeconds,
               }) => {
                 await runBusyTask(async () => {
                   await updateConfig({
@@ -641,6 +766,7 @@ export function RoomPage({ slug }: { slug: string }) {
                     consensusMode,
                     consensusThreshold,
                     hostVotingEnabled,
+                    votingTimeLimitSeconds,
                     ...(guestOwnerToken ? { guestOwnerToken } : {}),
                   });
                   playConfigChangedSound();

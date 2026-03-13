@@ -9,6 +9,7 @@ import {
   assertVoteValueAllowed,
   buildRoomState,
   canParticipantVoteInRoom,
+  finalizeExpiredVotingRoundIfNeeded,
   findGuestParticipantByToken,
   findHostParticipantByGuestOwnerToken,
   findHostParticipantByUserId,
@@ -161,6 +162,10 @@ export const castVote = mutation({
       throw new ConvexError("No active voting round");
     }
 
+    if (await finalizeExpiredVotingRoundIfNeeded(ctx, room, round)) {
+      throw new ConvexError("Voting time limit has expired");
+    }
+
     assertVoteValueAllowed(room.scaleType, room.customScaleValues, args.value);
     const participant = await resolveVotingParticipant(
       ctx,
@@ -223,6 +228,29 @@ export const castVote = mutation({
       await finishRound(ctx, room, round, "all_voted");
     }
 
+    return null;
+  }),
+});
+
+export const syncTimeout = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    roundId: v.id("rounds"),
+  },
+  handler: withUnexpectedErrorLogging("rounds.syncTimeout", async (ctx, args) => {
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      return null;
+    }
+
+    assertRoomNotExpired(room);
+
+    const round = await ctx.db.get(args.roundId);
+    if (!round || round.roomId !== room._id) {
+      return null;
+    }
+
+    await finalizeExpiredVotingRoundIfNeeded(ctx, room, round);
     return null;
   }),
 });
