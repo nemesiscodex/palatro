@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetSharedMocks, toastError, toastSuccess } from "@/test/mocks";
 
+const clipboardWriteText = vi.fn();
+const qrCodeToString = vi.fn();
+const expectedRoomUrl = "http://localhost/rooms/demo";
+
 const routeState = {
   queryValue: undefined as unknown,
   queryCalls: [] as unknown[],
@@ -40,6 +44,10 @@ vi.mock("sonner", () => ({
     success: toastSuccess,
     error: toastError,
   },
+}));
+
+vi.mock("qrcode", () => ({
+  toString: qrCodeToString,
 }));
 
 vi.mock("@posthog/react", () => ({
@@ -125,6 +133,18 @@ describe("RoomPage", () => {
     routeState.queryValue = undefined;
     routeState.queryCalls = [];
     window.localStorage.clear();
+    clipboardWriteText.mockReset();
+    clipboardWriteText.mockResolvedValue(undefined);
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: clipboardWriteText,
+      },
+    });
+    qrCodeToString.mockReset();
+    qrCodeToString.mockResolvedValue(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#fff" /></svg>',
+    );
     for (const mutation of Object.values(routeState.mutations)) {
       mutation.mockReset();
     }
@@ -778,6 +798,155 @@ describe("RoomPage", () => {
 
     expect(screen.getByText("Watching this round. View-only participants don't vote.")).toBeInTheDocument();
     expect(screen.getByText("Participants")).toBeInTheDocument();
+  });
+
+  it("copies the room URL to the clipboard", async () => {
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        ownerKind: "registered",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      deck: ["1", "2", "3"],
+      participants: [],
+      activeRound: null,
+      viewer: {
+        isOwner: true,
+        participantId: "host-1",
+        participantKind: "host",
+        canVote: true,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Dealer",
+        isAuthenticated: true,
+      },
+    };
+
+    render(<RoomPage slug="demo-room" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy URL" }));
+
+    await waitFor(() => {
+      expect(clipboardWriteText).toHaveBeenCalledWith(expectedRoomUrl);
+    });
+    expect(toastSuccess).toHaveBeenCalledWith("Room URL copied");
+    expect(routeState.posthogCapture).toHaveBeenCalledWith("room_url_copied", {
+      room_id: "room-1",
+      room_slug: "demo-room",
+      is_owner: true,
+    });
+  });
+
+  it("shows an error when copying the room URL fails", async () => {
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        ownerKind: "registered",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      deck: ["1", "2", "3"],
+      participants: [],
+      activeRound: null,
+      viewer: {
+        isOwner: true,
+        participantId: "host-1",
+        participantKind: "host",
+        canVote: true,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Dealer",
+        isAuthenticated: true,
+      },
+    };
+    clipboardWriteText.mockRejectedValueOnce(new Error("Denied"));
+
+    render(<RoomPage slug="demo-room" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy URL" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("Could not copy URL");
+    });
+    expect(routeState.posthogCapture).toHaveBeenCalledWith("room_url_copy_failed", {
+      room_id: "room-1",
+      room_slug: "demo-room",
+      is_owner: true,
+      error: "Denied",
+    });
+  });
+
+  it("opens a QR code dialog for the room URL", async () => {
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        ownerKind: "registered",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      deck: ["1", "2", "3"],
+      participants: [],
+      activeRound: null,
+      viewer: {
+        isOwner: true,
+        participantId: "host-1",
+        participantKind: "host",
+        canVote: true,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Dealer",
+        isAuthenticated: true,
+      },
+    };
+
+    render(<RoomPage slug="demo-room" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "QR code" }));
+
+    await waitFor(() => {
+      expect(qrCodeToString).toHaveBeenCalledWith(
+        expectedRoomUrl,
+        expect.objectContaining({
+          type: "svg",
+          width: 512,
+          margin: 1,
+          errorCorrectionLevel: "M",
+        }),
+      );
+    });
+
+    expect(await screen.findByRole("dialog", { name: "Scan to open this room" })).toBeInTheDocument();
+    expect(screen.getByAltText(`QR code for ${expectedRoomUrl}`)).toBeInTheDocument();
+    expect(routeState.posthogCapture).toHaveBeenCalledWith("room_qr_opened", {
+      room_id: "room-1",
+      room_slug: "demo-room",
+      is_owner: true,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Close QR code dialog" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Scan to open this room" })).not.toBeInTheDocument();
+    });
   });
 
   it("includes share metadata for room links", () => {

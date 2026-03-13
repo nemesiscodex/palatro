@@ -1,6 +1,8 @@
 import { api } from "@palatro/backend/convex/_generated/api";
+import { Dialog } from "@base-ui/react/dialog";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "convex/react";
+import { QrCode, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { usePostHog } from "@posthog/react";
@@ -110,6 +112,10 @@ export function RoomPage({ slug }: { slug: string }) {
   const [guestOwnerToken, setGuestOwnerToken] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  const [isGeneratingQrCode, setIsGeneratingQrCode] = useState(false);
+  const [qrCodeImageSrc, setQrCodeImageSrc] = useState<string | null>(null);
+  const [qrCodeValue, setQrCodeValue] = useState<string | null>(null);
   const posthog = usePostHog();
   const hostJoinRequested = useRef(false);
   const guestClaimRequested = useRef(false);
@@ -366,6 +372,7 @@ export function RoomPage({ slug }: { slug: string }) {
   const isVoting = roomState.room.status === "voting";
   const isRevealed = roomState.room.status === "revealed";
   const hasVotingTimer = roomState.room.votingTimeLimitSeconds != null;
+  const roomUrl = typeof window === "undefined" ? `/rooms/${slug}` : window.location.href;
 
   async function runBusyTask(task: () => Promise<unknown>, errorMessage: string) {
     if (isBusy) {
@@ -384,125 +391,191 @@ export function RoomPage({ slug }: { slug: string }) {
     }
   }
 
+  async function openQrCodeDialog() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const nextRoomUrl = window.location.href;
+    if (qrCodeImageSrc && qrCodeValue === nextRoomUrl) {
+      setIsQrDialogOpen(true);
+      return;
+    }
+
+    setIsGeneratingQrCode(true);
+
+    try {
+      const { toString } = await import("qrcode");
+      const qrCodeSvg = await toString(nextRoomUrl, {
+        type: "svg",
+        width: 512,
+        margin: 1,
+        errorCorrectionLevel: "M",
+        color: {
+          dark: "#24160cff",
+          light: "#f7f0d0ff",
+        },
+      });
+
+      setQrCodeImageSrc(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(qrCodeSvg)}`);
+      setQrCodeValue(nextRoomUrl);
+      setIsQrDialogOpen(true);
+      posthog.capture("room_qr_opened", {
+        room_id: String(roomState.room.id),
+        room_slug: slug,
+        is_owner: roomState.viewer.isOwner,
+      });
+    } catch (error) {
+      toast.error(getUserFacingErrorMessage(error, "Could not generate QR code"));
+      playBlockedActionSound();
+    } finally {
+      setIsGeneratingQrCode(false);
+    }
+  }
+
   return (
-    <main className="mx-auto grid w-full max-w-7xl items-start gap-8 px-5 py-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,360px)]">
-      <section data-testid="room-main-column" className="grid gap-4 lg:gap-5">
-        {/* Room header */}
-        <div className="stagger-rise">
-          <div className="flex items-start gap-3">
-            <span className="mt-1 text-lg text-primary/30">{"\u2660"}</span>
-            <div>
-              <p className="ornate-label text-primary/50">Room {slug}</p>
-              <h1 className="mt-1 font-serif text-5xl leading-[0.9] tracking-tight">{roomState.room.name}</h1>
+    <>
+      <main className="mx-auto grid w-full max-w-7xl items-start gap-8 px-5 py-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,360px)]">
+        <section data-testid="room-main-column" className="grid gap-4 lg:gap-5">
+          {/* Room header */}
+          <div className="stagger-rise">
+            <div className="flex items-start gap-3">
+              <span className="mt-1 text-lg text-primary/30">{"\u2660"}</span>
+              <div>
+                <p className="ornate-label text-primary/50">Room {slug}</p>
+                <h1 className="mt-1 font-serif text-5xl leading-[0.9] tracking-tight">{roomState.room.name}</h1>
+              </div>
             </div>
-          </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            {/* Status badge */}
-            <span className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.18em]",
-              isVoting
-                ? "bg-primary/15 text-primary"
-                : isRevealed
-                  ? "bg-accent/15 text-accent"
-                  : "bg-white/[0.04] text-muted-foreground/60",
-            )}>
-              <span className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                isVoting
-                  ? "bg-primary status-voting"
-                  : isRevealed
-                    ? "bg-accent"
-                    : "bg-muted-foreground/30",
-              )} />
-              {isVoting ? "Live" : isRevealed ? "Revealed" : "Idle"}
-            </span>
-
-            {hasVotingTimer ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {/* Status badge */}
               <span className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.18em]",
-                isVoting && remainingVotingSeconds !== null
-                  ? remainingVotingSeconds <= 5
-                    ? "bg-amber-500/15 text-amber-200"
-                    : "bg-white/[0.04] text-muted-foreground/70"
-                  : "bg-white/[0.04] text-muted-foreground/70",
+                isVoting
+                  ? "bg-primary/15 text-primary"
+                  : isRevealed
+                    ? "bg-accent/15 text-accent"
+                    : "bg-white/[0.04] text-muted-foreground/60",
               )}>
-                <span className="h-1.5 w-1.5 rounded-full bg-current/70" />
-                {isVoting && remainingVotingSeconds !== null
-                  ? formatVotingCountdown(remainingVotingSeconds)
-                  : `Timer ${formatVotingTimeLimitLabel(roomState.room.votingTimeLimitSeconds)}`}
+                <span className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  isVoting
+                    ? "bg-primary status-voting"
+                    : isRevealed
+                      ? "bg-accent"
+                      : "bg-muted-foreground/30",
+                )} />
+                {isVoting ? "Live" : isRevealed ? "Revealed" : "Idle"}
               </span>
-            ) : null}
 
-            {/* URL + copy */}
-            <code className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[0.6rem] text-muted-foreground/50 font-mono">
-              {typeof window === "undefined" ? `/rooms/${slug}` : window.location.href}
-            </code>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                if (typeof navigator === "undefined" || !navigator.clipboard) {
-                  return;
-                }
-                void navigator.clipboard.writeText(window.location.href).then(() => {
-                  posthog.capture("room_url_copied", {
-                    room_id: String(roomState.room.id),
-                    room_slug: slug,
-                    is_owner: roomState.viewer.isOwner,
-                  });
-                  toast.success("Room URL copied");
-                });
-              }}
-            >
-              Copy URL
-            </Button>
-          </div>
+              {hasVotingTimer ? (
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.18em]",
+                  isVoting && remainingVotingSeconds !== null
+                    ? remainingVotingSeconds <= 5
+                      ? "bg-amber-500/15 text-amber-200"
+                      : "bg-white/[0.04] text-muted-foreground/70"
+                    : "bg-white/[0.04] text-muted-foreground/70",
+                )}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-current/70" />
+                  {isVoting && remainingVotingSeconds !== null
+                    ? formatVotingCountdown(remainingVotingSeconds)
+                    : `Timer ${formatVotingTimeLimitLabel(roomState.room.votingTimeLimitSeconds)}`}
+                </span>
+              ) : null}
 
-          {roomState.room.ownerKind === "guest" && roomState.viewer.isOwner ? (
-            <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-4">
-              <p className="text-sm font-medium text-foreground">
-                This guest room is temporary and saved only on this device for 24 hours.
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Create an account to claim it, keep it longer, and manage rooms from anywhere.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    window.location.assign(`/?redirectTo=${encodeURIComponent(`/rooms/${slug}`)}`);
-                  }}
-                >
-                  Create account to claim
-                </Button>
-                {!roomState.viewer.isAuthenticated ? (
+              {/* URL + copy */}
+              <code className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[0.6rem] text-muted-foreground/50 font-mono">
+                {roomUrl}
+              </code>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (typeof navigator === "undefined" || !navigator.clipboard) {
+                    return;
+                  }
+                  void navigator.clipboard.writeText(roomUrl)
+                    .then(() => {
+                      posthog.capture("room_url_copied", {
+                        room_id: String(roomState.room.id),
+                        room_slug: slug,
+                        is_owner: roomState.viewer.isOwner,
+                      });
+                      toast.success("Room URL copied");
+                    })
+                    .catch((error: unknown) => {
+                      posthog.capture("room_url_copy_failed", {
+                        room_id: String(roomState.room.id),
+                        room_slug: slug,
+                        is_owner: roomState.viewer.isOwner,
+                        error: error instanceof Error ? error.message : String(error),
+                      });
+                      toast.error("Could not copy URL");
+                      playBlockedActionSound();
+                    });
+                }}
+              >
+                Copy URL
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isGeneratingQrCode}
+                onClick={() => {
+                  void openQrCodeDialog();
+                }}
+              >
+                <QrCode />
+                {isGeneratingQrCode ? "Generating..." : "QR code"}
+              </Button>
+            </div>
+
+            {roomState.room.ownerKind === "guest" && roomState.viewer.isOwner ? (
+              <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/10 px-4 py-4">
+                <p className="text-sm font-medium text-foreground">
+                  This guest room is temporary and saved only on this device for 24 hours.
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Create an account to claim it, keep it longer, and manage rooms from anywhere.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    variant="ghost"
                     onClick={() => {
-                      window.location.assign(`/?redirectTo=${encodeURIComponent(`/rooms/${slug}`)}&mode=signin`);
+                      window.location.assign(`/?redirectTo=${encodeURIComponent(`/rooms/${slug}`)}`);
                     }}
                   >
-                    Sign in to claim
+                    Create account to claim
                   </Button>
-                ) : null}
+                  {!roomState.viewer.isAuthenticated ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        window.location.assign(`/?redirectTo=${encodeURIComponent(`/rooms/${slug}`)}&mode=signin`);
+                      }}
+                    >
+                      Sign in to claim
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
 
-        {/* The Table — main interaction area */}
-        <Card
-          className={cn(
-            "stagger-rise transition-all duration-500",
-            isVoting && "table-ring",
-          )}
-          style={{ animationDelay: "100ms" }}
-        >
+          {/* The Table — main interaction area */}
+          <Card
+            className={cn(
+              "stagger-rise transition-all duration-500",
+              isVoting && "table-ring",
+            )}
+            style={{ animationDelay: "100ms" }}
+          >
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span className="text-primary/40">{"\u2663"}</span>
@@ -683,10 +756,10 @@ export function RoomPage({ slug }: { slug: string }) {
             />
           </CardContent>
         </Card>
-      </section>
+        </section>
 
-      {/* Sidebar */}
-      <aside className="grid content-start gap-5">
+        {/* Sidebar */}
+        <aside className="grid content-start gap-5">
         <Card className="stagger-rise" style={{ animationDelay: "140ms" }}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -786,7 +859,50 @@ export function RoomPage({ slug }: { slug: string }) {
             />
           </CardContent>
         </Card>
-      </aside>
-    </main>
+        </aside>
+      </main>
+
+      <Dialog.Root open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md" />
+          <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),34rem)] -translate-x-1/2 -translate-y-1/2 rounded-[2rem] border border-white/[0.08] bg-[radial-gradient(circle_at_top,_rgba(218,185,100,0.18),_transparent_55%),linear-gradient(180deg,rgba(22,15,11,0.98),rgba(10,8,7,0.98))] p-5 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="ornate-label text-primary/55">Share this room</p>
+                <Dialog.Title className="mt-2 font-serif text-3xl leading-none text-foreground sm:text-4xl">
+                  Scan to open this room
+                </Dialog.Title>
+                <Dialog.Description className="mt-3 max-w-md text-sm text-muted-foreground">
+                  Hold a phone camera over the code to open this room link.
+                </Dialog.Description>
+              </div>
+              <Dialog.Close
+                aria-label="Close QR code dialog"
+                className="inline-flex size-10 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-muted-foreground transition-colors hover:bg-white/[0.08] hover:text-foreground"
+              >
+                <X />
+              </Dialog.Close>
+            </div>
+
+            <div className="mt-6 rounded-[1.75rem] border border-black/10 bg-[#f7f0d0] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:p-5">
+              {qrCodeImageSrc ? (
+                <img
+                  alt={`QR code for ${roomUrl}`}
+                  className="mx-auto aspect-square w-full max-w-[28rem]"
+                  src={qrCodeImageSrc}
+                />
+              ) : null}
+            </div>
+
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              If the camera does not react, open any QR scanner app.
+            </p>
+            <code className="mt-4 block overflow-x-auto rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3 text-center text-[0.65rem] text-muted-foreground/70">
+              {roomUrl}
+            </code>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
   );
 }
