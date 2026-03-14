@@ -12,7 +12,6 @@ import { useAppSound } from "@/hooks/use-app-sound";
 import { Input } from "@/components/ui/input";
 import {
   CONSENSUS_THRESHOLD_PRESETS,
-  DEFAULT_CONSENSUS_THRESHOLD,
   getConsensusThresholdForStep,
   getConsensusThresholdStepIndex,
 } from "@/lib/consensus";

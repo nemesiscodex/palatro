@@ -9,6 +9,8 @@ import {
   assertVoteValueAllowed,
   buildRoomState,
   canParticipantVoteInRoom,
+  finalizeReadyCheckIfComplete,
+  finalizeExpiredReadyCheckIfNeeded,
   finalizeExpiredVotingRoundIfNeeded,
   findGuestParticipantByToken,
   findHostParticipantByGuestOwnerToken,
@@ -16,6 +18,7 @@ import {
   finishRound,
   getFreshVotingParticipants,
   getRoomActivityPatch,
+  READY_CHECK_DURATION_MS,
   requireAuthSession,
 } from "./pokerHelpers";
 import {
@@ -137,6 +140,122 @@ export const restart = mutation({
   }),
 });
 
+export const startReadyCheck = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    guestOwnerToken: v.optional(v.string()),
+  },
+  handler: withUnexpectedErrorLogging("rounds.startReadyCheck", async (ctx, args) => {
+    const { room } = await assertRoomManagementAccess(ctx, args.roomId, args.guestOwnerToken);
+    await assertRoundControlRateLimit(ctx, String(room._id));
+
+    const now = Date.now();
+    await finalizeExpiredReadyCheckIfNeeded(ctx, room, now);
+
+    const freshRoom = ((await ctx.db.get(room._id)) ?? room) as Doc<"rooms">;
+    if (freshRoom.readyCheckIsActive === true) {
+      throw new ConvexError("A ready check is already active");
+    }
+
+    const readyCheckExpiresAt = now + READY_CHECK_DURATION_MS;
+    const participants = await ctx.db
+      .query("participants")
+      .withIndex("by_roomId", (q: any) => q.eq("roomId", freshRoom._id))
+      .collect();
+
+    for (const participant of participants as Doc<"participants">[]) {
+      if (!participant.isActive || participant.kind === "host") {
+        continue;
+      }
+
+      await ctx.db.patch(participant._id, {
+        readyCheckStatus: "pending",
+        readyCheckStartedAt: now,
+        readyCheckRespondedAt: undefined,
+      });
+    }
+
+    await ctx.db.patch(freshRoom._id, {
+      readyCheckStartedAt: now,
+      readyCheckExpiresAt,
+      readyCheckIsActive: true,
+      ...getRoomActivityPatch(freshRoom, now),
+    });
+
+    await finalizeReadyCheckIfComplete(ctx, {
+      ...freshRoom,
+      readyCheckStartedAt: now,
+      readyCheckExpiresAt,
+      readyCheckIsActive: true,
+    });
+
+    return {
+      startedAt: now,
+      expiresAt: readyCheckExpiresAt,
+    };
+  }),
+});
+
+export const respondReadyCheck = mutation({
+  args: {
+    roomId: v.id("rooms"),
+    participantId: v.id("participants"),
+    answer: v.union(v.literal("yes"), v.literal("no")),
+    guestToken: v.optional(v.string()),
+    guestOwnerToken: v.optional(v.string()),
+  },
+  handler: withUnexpectedErrorLogging("rounds.respondReadyCheck", async (ctx, args) => {
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      throw new ConvexError("Room not found");
+    }
+    assertRoomNotExpired(room);
+
+    await finalizeExpiredReadyCheckIfNeeded(ctx, room);
+    const freshRoom = ((await ctx.db.get(room._id)) ?? room) as Doc<"rooms">;
+
+    if (
+      freshRoom.readyCheckIsActive !== true ||
+      !freshRoom.readyCheckStartedAt ||
+      !freshRoom.readyCheckExpiresAt
+    ) {
+      throw new ConvexError("No active ready check");
+    }
+
+    if (freshRoom.readyCheckExpiresAt <= Date.now()) {
+      throw new ConvexError("Ready check has expired");
+    }
+
+    const participant = await resolveVotingParticipant(
+      ctx,
+      freshRoom,
+      args.participantId,
+      args.guestToken,
+      args.guestOwnerToken,
+    );
+
+    if (participant.kind === "host") {
+      throw new ConvexError("Dealer is always ready");
+    }
+
+    if (participant.readyCheckStartedAt !== freshRoom.readyCheckStartedAt) {
+      throw new ConvexError("This participant is not part of the active ready check");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(participant._id, {
+      readyCheckStatus: args.answer,
+      readyCheckRespondedAt: now,
+      lastSeenAt: now,
+      isActive: true,
+    });
+    await ctx.db.patch(freshRoom._id, getRoomActivityPatch(freshRoom, now));
+    await finalizeReadyCheckIfComplete(ctx, freshRoom, now);
+
+    return null;
+  }),
+});
+
 export const castVote = mutation({
   args: {
     roomId: v.id("rooms"),
@@ -251,6 +370,22 @@ export const syncTimeout = mutation({
     }
 
     await finalizeExpiredVotingRoundIfNeeded(ctx, room, round);
+    return null;
+  }),
+});
+
+export const syncReadyCheckTimeout = mutation({
+  args: {
+    roomId: v.id("rooms"),
+  },
+  handler: withUnexpectedErrorLogging("rounds.syncReadyCheckTimeout", async (ctx, args) => {
+    const room = await ctx.db.get(args.roomId);
+    if (!room) {
+      return null;
+    }
+
+    assertRoomNotExpired(room);
+    await finalizeExpiredReadyCheckIfNeeded(ctx, room);
     return null;
   }),
 });

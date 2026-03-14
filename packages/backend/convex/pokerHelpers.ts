@@ -18,6 +18,7 @@ import {
 
 type Ctx = any;
 const GUEST_ROOM_TTL_MS = 24 * 60 * 60 * 1000;
+export const READY_CHECK_DURATION_MS = 15_000;
 
 export function resolveRoomOwnerKind(
   room: Pick<Doc<"rooms">, "ownerKind">,
@@ -430,6 +431,81 @@ export async function finalizeExpiredVotingRoundIfNeeded(
   return true;
 }
 
+export async function finalizeExpiredReadyCheckIfNeeded(
+  ctx: Ctx,
+  room: Doc<"rooms">,
+  now = Date.now(),
+) {
+  if (
+    room.readyCheckIsActive !== true ||
+    !room.readyCheckStartedAt ||
+    !room.readyCheckExpiresAt ||
+    room.readyCheckExpiresAt > now
+  ) {
+    return false;
+  }
+
+  const participants = await ctx.db
+    .query("participants")
+    .withIndex("by_roomId", (q: any) => q.eq("roomId", room._id))
+    .collect();
+
+  for (const participant of participants as Doc<"participants">[]) {
+    if (
+      participant.kind === "host" ||
+      participant.readyCheckStartedAt !== room.readyCheckStartedAt ||
+      participant.readyCheckStatus !== "pending"
+    ) {
+      continue;
+    }
+
+    await ctx.db.patch(participant._id, {
+      readyCheckStatus: "no",
+      readyCheckRespondedAt: now,
+    });
+  }
+
+  await ctx.db.patch(room._id, {
+    readyCheckIsActive: false,
+    ...getRoomActivityPatch(room, now),
+  });
+
+  return true;
+}
+
+export async function finalizeReadyCheckIfComplete(
+  ctx: Ctx,
+  room: Doc<"rooms">,
+  now = Date.now(),
+) {
+  if (room.readyCheckIsActive !== true || !room.readyCheckStartedAt) {
+    return false;
+  }
+
+  const participants = await getFreshParticipants(ctx, room._id, now);
+  const readyCheckParticipants = participants.filter(
+    (participant: Doc<"participants">) =>
+      participant.kind !== "host" &&
+      participant.readyCheckStartedAt === room.readyCheckStartedAt,
+  );
+
+  if (
+    readyCheckParticipants.length > 0 &&
+    readyCheckParticipants.some(
+      (participant: Doc<"participants">) => (participant.readyCheckStatus ?? "pending") === "pending",
+    )
+  ) {
+    return false;
+  }
+
+  await ctx.db.patch(room._id, {
+    readyCheckIsActive: false,
+    ...getRoomActivityPatch(room, now),
+  });
+
+  return true;
+}
+
 export async function buildRoomState(
   ctx: Ctx,
   slug: string,
@@ -485,6 +561,50 @@ export async function buildRoomState(
     consensusThreshold: room.consensusThreshold,
   });
   const hostVotingEnabled = resolveHostVotingEnabled(room.hostVotingEnabled);
+  const readyCheckStartedAt = room.readyCheckStartedAt ?? null;
+  const readyCheckExpiresAt = room.readyCheckExpiresAt ?? null;
+  const readyCheckIsActive =
+    room.readyCheckIsActive === true &&
+    readyCheckStartedAt !== null &&
+    readyCheckExpiresAt !== null;
+  const readyCheckParticipants =
+    readyCheckStartedAt === null
+      ? []
+      : participants.filter(
+          (participant: Doc<"participants">) =>
+            participant.kind !== "host" && participant.readyCheckStartedAt === readyCheckStartedAt,
+        );
+  const readyCheckPendingCount = readyCheckParticipants.filter(
+    (participant: Doc<"participants">) => (participant.readyCheckStatus ?? "pending") === "pending",
+  ).length;
+  const readyCheckNoCount = readyCheckParticipants.filter(
+    (participant: Doc<"participants">) => participant.readyCheckStatus === "no",
+  ).length;
+  const readyCheckResult =
+    readyCheckStartedAt === null || readyCheckIsActive || readyCheckPendingCount > 0
+      ? null
+      : readyCheckNoCount > 0
+        ? "not_all_ready"
+        : "all_ready";
+
+  const getParticipantReadyCheckStatus = (participant: Doc<"participants">) => {
+    if (readyCheckStartedAt === null) {
+      return null;
+    }
+
+    if (participant.kind === "host") {
+      return "yes" as const;
+    }
+
+    if (participant.readyCheckStartedAt !== readyCheckStartedAt) {
+      return null;
+    }
+
+    return participant.readyCheckStatus ?? "pending";
+  };
+  const viewerReadyCheckStatus = viewerParticipant
+    ? getParticipantReadyCheckStatus(viewerParticipant)
+    : null;
 
   return {
     room: {
@@ -502,6 +622,22 @@ export async function buildRoomState(
       ownerKind,
       guestExpiresAt: room.guestExpiresAt ?? null,
     },
+    readyCheck:
+      readyCheckStartedAt !== null && readyCheckExpiresAt !== null
+        ? {
+            startedAt: readyCheckStartedAt,
+            expiresAt: readyCheckExpiresAt,
+            isActive: readyCheckIsActive,
+            result: readyCheckResult,
+            viewerStatus: viewerReadyCheckStatus,
+            viewerCanRespond:
+              readyCheckIsActive &&
+              !!viewerParticipant &&
+              viewerParticipant.kind !== "host" &&
+              viewerParticipant.readyCheckStartedAt === readyCheckStartedAt &&
+              (viewerParticipant.readyCheckStatus ?? "pending") === "pending",
+          }
+        : null,
     eligibleParticipantCount: participants.filter((participant: Doc<"participants">) =>
       canParticipantVoteInRoom(participant, room),
     ).length,
@@ -515,6 +651,7 @@ export async function buildRoomState(
         hasVoted: !!vote,
         revealedVote: room.status === "revealed" ? vote?.value ?? null : null,
         kind: participant.kind,
+        readyCheckStatus: getParticipantReadyCheckStatus(participant),
       };
     }),
     activeRound: activeRound

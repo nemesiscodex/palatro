@@ -43,7 +43,7 @@ describe("RoomConfigPanel", () => {
 
     expect(screen.getByText("Current configuration")).toBeInTheDocument();
     expect(screen.getByText("Fibonacci")).toBeInTheDocument();
-    expect(screen.getByText("Threshold at 60%")).toBeInTheDocument();
+    expect(screen.getByText("60% of votes")).toBeInTheDocument();
     expect(screen.getByText("45 seconds")).toBeInTheDocument();
     expect(screen.getByText("Host only")).toBeInTheDocument();
     expect(screen.getByText("Protected")).toBeInTheDocument();

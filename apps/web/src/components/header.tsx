@@ -11,6 +11,7 @@ export default function Header() {
   const rooms = useQuery(api.rooms.listMine, !isLoading && isAuthenticated ? {} : "skip");
   const { muted, toggleMuted } = useSoundSettings();
   const links = isAuthenticated ? [{ to: "/dashboard", label: "Dashboard" }] as const : [];
+  const roomPills = (rooms ?? []) as Array<{ id: string; slug: string; name: string }>;
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/6 bg-[rgba(5,16,14,0.72)] backdrop-blur-2xl backdrop-saturate-150">
@@ -92,7 +93,7 @@ export default function Header() {
         {isAuthenticated && (rooms?.length ?? 0) > 0 ? (
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.04] pt-3">
             <span className="ornate-label mr-1 text-primary/50">Rooms</span>
-            {(rooms ?? []).map((room) => (
+            {roomPills.map((room) => (
               <Link
                 key={room.id}
                 to="/rooms/$slug"

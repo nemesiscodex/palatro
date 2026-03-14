@@ -11,6 +11,7 @@ interface ParticipantListProps {
     hasVoted: boolean;
     revealedVote: string | null;
     kind: "host" | "guest" | "viewer";
+    readyCheckStatus?: "pending" | "yes" | "no" | null;
   }>;
   status: "idle" | "voting" | "revealed";
   canManage?: boolean;
@@ -86,6 +87,29 @@ export default function ParticipantList({
                       ? "Viewer"
                       : "Player"}
                 </p>
+                {participant.readyCheckStatus ? (
+                  <p className="mt-1 flex items-center gap-1.5 text-[0.62rem] font-medium text-muted-foreground/75">
+                    <span className={cn(
+                      "inline-flex h-4 w-4 items-center justify-center rounded-full border text-[0.55rem]",
+                      participant.readyCheckStatus === "yes"
+                        ? "border-primary/30 bg-primary/10 text-primary"
+                        : participant.readyCheckStatus === "no"
+                          ? "border-destructive/30 bg-destructive/10 text-destructive"
+                          : "border-white/10 bg-white/[0.03] text-muted-foreground/60",
+                    )}>
+                      {participant.readyCheckStatus === "yes"
+                        ? "\u2713"
+                        : participant.readyCheckStatus === "no"
+                          ? "\u2715"
+                          : "\u00B7"}
+                    </span>
+                    {participant.readyCheckStatus === "yes"
+                      ? "Ready"
+                      : participant.readyCheckStatus === "no"
+                        ? "Not ready"
+                        : "Awaiting ready check"}
+                  </p>
+                ) : null}
               </div>
 
               {canManage && participant.kind !== "host" && onKick ? (

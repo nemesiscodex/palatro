@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { Id } from "@palatro/backend/convex/_generated/dataModel";
+
 import { MockLink } from "@/test/mocks";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -10,6 +12,9 @@ vi.mock("@tanstack/react-router", () => ({
 import RoomList from "./room-list";
 
 describe("RoomList", () => {
+  const sprintRoomId = "room-1" as Id<"rooms">;
+  const sizingRoomId = "room-2" as Id<"rooms">;
+
   it("renders an empty state", () => {
     render(<RoomList rooms={[]} onDeleteRoom={vi.fn()} />);
 
@@ -23,7 +28,7 @@ describe("RoomList", () => {
       <RoomList
         rooms={[
           {
-            id: "room-1",
+            id: sprintRoomId,
             name: "Sprint Poker",
             slug: "sprint-poker",
             scaleType: "fibonacci",
@@ -45,7 +50,7 @@ describe("RoomList", () => {
 
     expect(onDeleteRoom).toHaveBeenCalledWith(
       expect.objectContaining({
-        id: "room-1",
+        id: sprintRoomId,
         slug: "sprint-poker",
       }),
     );
@@ -56,7 +61,7 @@ describe("RoomList", () => {
       <RoomList
         rooms={[
           {
-            id: "room-2",
+            id: sizingRoomId,
             name: "Sizing Room",
             slug: "sizing-room",
             scaleType: "t_shirt",

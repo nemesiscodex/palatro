@@ -23,8 +23,11 @@ const routeState = {
     castVote: vi.fn(),
     start: vi.fn(),
     restart: vi.fn(),
+    startReadyCheck: vi.fn(),
+    respondReadyCheck: vi.fn(),
     forceFinish: vi.fn(),
     syncTimeout: vi.fn(),
+    syncReadyCheckTimeout: vi.fn(),
     updateConfig: vi.fn(),
     updatePassword: vi.fn(),
   },
@@ -84,8 +87,11 @@ vi.mock("@palatro/backend/convex/_generated/api", () => ({
       castVote: "rounds.castVote",
       start: "rounds.start",
       restart: "rounds.restart",
+      startReadyCheck: "rounds.startReadyCheck",
+      respondReadyCheck: "rounds.respondReadyCheck",
       forceFinish: "rounds.forceFinish",
       syncTimeout: "rounds.syncTimeout",
+      syncReadyCheckTimeout: "rounds.syncReadyCheckTimeout",
     },
   },
 }));
@@ -107,8 +113,11 @@ vi.mock("convex/react", () => ({
       "rounds.castVote": "castVote",
       "rounds.start": "start",
       "rounds.restart": "restart",
+      "rounds.startReadyCheck": "startReadyCheck",
+      "rounds.respondReadyCheck": "respondReadyCheck",
       "rounds.forceFinish": "forceFinish",
       "rounds.syncTimeout": "syncTimeout",
+      "rounds.syncReadyCheckTimeout": "syncReadyCheckTimeout",
       "rooms.updateConfig": "updateConfig",
       "rooms.updatePassword": "updatePassword",
     };
@@ -517,6 +526,50 @@ describe("RoomPage", () => {
     });
   });
 
+  it("lets the owner start a ready check from round controls", async () => {
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      readyCheck: null,
+      deck: ["1", "2", "3"],
+      participants: [],
+      activeRound: null,
+      viewer: {
+        isOwner: true,
+        participantId: "host-1",
+        participantKind: "host",
+        canVote: false,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Dealer",
+        isAuthenticated: true,
+      },
+    };
+    routeState.mutations.startReadyCheck.mockResolvedValue({
+      startedAt: 10_000,
+      expiresAt: 25_000,
+    });
+
+    render(<RoomPage slug="demo-room" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ready check" }));
+
+    await waitFor(() => {
+      expect(routeState.mutations.startReadyCheck).toHaveBeenCalledWith({
+        roomId: "room-1",
+      });
+    });
+  });
+
   it("allows guests to leave and clears their stored token", async () => {
     window.localStorage.setItem("pointing-poker:guest-token:demo-room", "guest-123");
     routeState.queryValue = {
@@ -723,6 +776,256 @@ describe("RoomPage", () => {
       roundId: "round-1",
     });
     expect(routeState.playSound).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the ready check prompt and submits a yes response", async () => {
+    const readyCheckStartedAt = Date.now();
+
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      readyCheck: {
+        startedAt: readyCheckStartedAt,
+        expiresAt: readyCheckStartedAt + 15_000,
+        isActive: true,
+        viewerStatus: "pending",
+        viewerCanRespond: true,
+      },
+      deck: ["1", "2", "3"],
+      participants: [
+        {
+          id: "guest-1",
+          displayName: "Alex",
+          hasVoted: false,
+          revealedVote: null,
+          kind: "guest",
+          readyCheckStatus: "pending",
+        },
+        {
+          id: "host-1",
+          displayName: "Dealer",
+          hasVoted: false,
+          revealedVote: null,
+          kind: "host",
+          readyCheckStatus: "yes",
+        },
+      ],
+      activeRound: null,
+      viewer: {
+        isOwner: false,
+        participantId: "guest-1",
+        participantKind: "guest",
+        canVote: false,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Alex",
+        isAuthenticated: false,
+      },
+    };
+    routeState.mutations.respondReadyCheck.mockResolvedValue(null);
+
+    render(<RoomPage slug="demo-room" />);
+
+    expect(screen.getByText("Answer Yes or No before the timer runs out.")).toBeInTheDocument();
+    expect(screen.getByText("Awaiting ready check")).toBeInTheDocument();
+    expect(screen.getByText("Ready")).toBeInTheDocument();
+    expect(routeState.playSound).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+
+    await waitFor(() => {
+      expect(routeState.mutations.respondReadyCheck).toHaveBeenCalledWith({
+        roomId: "room-1",
+        participantId: "guest-1",
+        answer: "yes",
+        guestToken: undefined,
+      });
+    });
+    expect(routeState.playSound).toHaveBeenCalledTimes(2);
+  });
+
+  it("plays the timeout sound when the participant answers no", async () => {
+    const readyCheckStartedAt = Date.now();
+
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      readyCheck: {
+        startedAt: readyCheckStartedAt,
+        expiresAt: readyCheckStartedAt + 15_000,
+        isActive: true,
+        viewerStatus: "pending",
+        viewerCanRespond: true,
+      },
+      deck: ["1", "2", "3"],
+      participants: [
+        {
+          id: "guest-1",
+          displayName: "Alex",
+          hasVoted: false,
+          revealedVote: null,
+          kind: "guest",
+          readyCheckStatus: "pending",
+        },
+      ],
+      activeRound: null,
+      viewer: {
+        isOwner: false,
+        participantId: "guest-1",
+        participantKind: "guest",
+        canVote: false,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Alex",
+        isAuthenticated: false,
+      },
+    };
+    routeState.mutations.respondReadyCheck.mockResolvedValue(null);
+
+    render(<RoomPage slug="demo-room" />);
+
+    expect(routeState.playSound).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "No" }));
+
+    await waitFor(() => {
+      expect(routeState.mutations.respondReadyCheck).toHaveBeenCalledWith({
+        roomId: "room-1",
+        participantId: "guest-1",
+        answer: "no",
+        guestToken: undefined,
+      });
+    });
+    expect(routeState.playSound).toHaveBeenCalledTimes(2);
+  });
+
+  it("syncs the ready check timeout when the countdown reaches zero", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-13T12:00:00.000Z"));
+
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      readyCheck: {
+        startedAt: Date.now(),
+        expiresAt: Date.now() + 2_000,
+        isActive: true,
+        viewerStatus: "pending",
+        viewerCanRespond: true,
+      },
+      deck: ["1", "2", "3"],
+      participants: [
+        {
+          id: "guest-1",
+          displayName: "Alex",
+          hasVoted: false,
+          revealedVote: null,
+          kind: "guest",
+          readyCheckStatus: "pending",
+        },
+      ],
+      activeRound: null,
+      viewer: {
+        isOwner: false,
+        participantId: "guest-1",
+        participantKind: "guest",
+        canVote: false,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Alex",
+        isAuthenticated: false,
+      },
+    };
+    routeState.mutations.syncReadyCheckTimeout.mockResolvedValue(null);
+
+    render(<RoomPage slug="demo-room" />);
+    routeState.playSound.mockClear();
+
+    await act(async () => {
+      vi.advanceTimersByTime(2_200);
+    });
+
+    expect(routeState.mutations.syncReadyCheckTimeout).toHaveBeenCalledWith({
+      roomId: "room-1",
+    });
+    expect(routeState.playSound).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a finished ready-check message when not everyone is ready", () => {
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      readyCheck: {
+        startedAt: 10_000,
+        expiresAt: 25_000,
+        isActive: false,
+        result: "not_all_ready",
+        viewerStatus: "no",
+        viewerCanRespond: false,
+      },
+      deck: ["1", "2", "3"],
+      participants: [
+        {
+          id: "guest-1",
+          displayName: "Alex",
+          hasVoted: false,
+          revealedVote: null,
+          kind: "guest",
+          readyCheckStatus: "no",
+        },
+      ],
+      activeRound: null,
+      viewer: {
+        isOwner: false,
+        participantId: "guest-1",
+        participantKind: "guest",
+        canVote: false,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Alex",
+        isAuthenticated: false,
+      },
+    };
+
+    render(<RoomPage slug="demo-room" />);
+
+    expect(screen.getByText("Not all participants are ready.")).toBeInTheDocument();
   });
 
   it("shows a waiting message for a host-only dealer during voting", () => {

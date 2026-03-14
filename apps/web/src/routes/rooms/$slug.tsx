@@ -21,7 +21,7 @@ import { bong001Sound } from "@/lib/bong-001";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GENERIC_UNEXPECTED_ERROR_MESSAGE, getUserFacingErrorMessage } from "@/lib/errors";
 import { pluck001Sound } from "@/lib/pluck-001";
-import { pluck002Sound } from "@/lib/pluck-002";
+import { tone1Sound } from "@/lib/tone-1";
 import {
   clearGuestToken,
   readGuestOwnerToken,
@@ -32,6 +32,7 @@ import { getSiteUrl } from "@/lib/site-url";
 import { cn } from "@/lib/utils";
 import { formatVotingCountdown, formatVotingTimeLimitLabel } from "@/lib/voting-time-limit";
 import { switch002Sound } from "@/lib/switch-002";
+import { switch006Sound } from "@/lib/switch-006";
 import { switch007Sound } from "@/lib/switch-007";
 
 export const Route = createFileRoute("/rooms/$slug")({
@@ -179,11 +180,16 @@ export function RoomPage({ slug }: { slug: string }) {
   const trackedDoneRounds = useRef(new Set<string>());
   const warnedTimerRounds = useRef(new Set<string>());
   const syncedTimeoutRounds = useRef(new Set<string>());
+  const syncedReadyChecks = useRef(new Set<string>());
+  const soundedReadyChecks = useRef(new Set<string>());
   const playBlockedActionSound = useAppSound(bong001Sound, { volumeMultiplier: 0.55 });
   const playRoundRevealSound = useAppSound(switch002Sound, { volumeMultiplier: 0.6 });
   const playConfigChangedSound = useAppSound(switch007Sound, { volumeMultiplier: 0.6 });
-  const playTimerWarningSound = useAppSound(pluck002Sound, { volumeMultiplier: 0.55 });
+  const playTimerWarningSound = useAppSound(tone1Sound, { volumeMultiplier: 0.65 });
   const playTimerExpiredSound = useAppSound(pluck001Sound, { volumeMultiplier: 0.7 });
+  const playReadyCheckPromptSound = useAppSound(tone1Sound, { volumeMultiplier: 0.65 });
+  const playReadyCheckYesSound = useAppSound(switch006Sound, { volumeMultiplier: 0.65 });
+  const playReadyCheckNoSound = useAppSound(pluck001Sound, { volumeMultiplier: 0.7 });
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -217,7 +223,10 @@ export function RoomPage({ slug }: { slug: string }) {
   const castVote = useMutation(api.rounds.castVote);
   const startRound = useMutation(api.rounds.start);
   const restartRound = useMutation(api.rounds.restart);
+  const startReadyCheck = useMutation(api.rounds.startReadyCheck);
+  const respondReadyCheck = useMutation(api.rounds.respondReadyCheck);
   const forceFinish = useMutation(api.rounds.forceFinish);
+  const syncReadyCheckTimeout = useMutation(api.rounds.syncReadyCheckTimeout);
   const syncTimeout = useMutation(api.rounds.syncTimeout);
   const updateConfig = useMutation(api.rooms.updateConfig);
   const updatePassword = useMutation(api.rooms.updatePassword);
@@ -276,7 +285,7 @@ export function RoomPage({ slug }: { slug: string }) {
 
   useEffect(() => {
     setCountdownNowMs(Date.now());
-  }, [roomState?.activeRound?.id, roomState?.room.status]);
+  }, [roomState?.activeRound?.id, roomState?.readyCheck?.startedAt, roomState?.room.status]);
 
   useEffect(() => {
     if (!roomState?.viewer.participantId) {
@@ -306,9 +315,17 @@ export function RoomPage({ slug }: { slug: string }) {
     votingDeadlineAt === null
       ? null
       : Math.max(0, Math.ceil((votingDeadlineAt - countdownNowMs) / 1000));
+  const activeReadyCheckId = roomState?.readyCheck ? String(roomState.readyCheck.startedAt) : null;
+  const activeReadyCheckKey =
+    roomState?.readyCheck ? `${String(roomState.room.id)}:${String(roomState.readyCheck.startedAt)}` : null;
+  const readyCheckDeadlineAt = roomState?.readyCheck?.isActive ? roomState.readyCheck.expiresAt : null;
+  const remainingReadyCheckSeconds =
+    readyCheckDeadlineAt === null
+      ? null
+      : Math.max(0, Math.ceil((readyCheckDeadlineAt - countdownNowMs) / 1000));
 
   useEffect(() => {
-    if (votingDeadlineAt === null) {
+    if (votingDeadlineAt === null && readyCheckDeadlineAt === null) {
       return;
     }
 
@@ -319,7 +336,7 @@ export function RoomPage({ slug }: { slug: string }) {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [votingDeadlineAt]);
+  }, [readyCheckDeadlineAt, votingDeadlineAt]);
 
   useEffect(() => {
     if (
@@ -368,6 +385,54 @@ export function RoomPage({ slug }: { slug: string }) {
       roundId: roomState.activeRound.id,
     }).catch(() => null);
   }, [activeRoundId, playTimerExpiredSound, remainingVotingSeconds, roomState, syncTimeout]);
+
+  useEffect(() => {
+    if (
+      !roomState?.readyCheck ||
+      !roomState.readyCheck.isActive ||
+      !activeReadyCheckId ||
+      remainingReadyCheckSeconds !== 0
+    ) {
+      return;
+    }
+
+    if (syncedReadyChecks.current.has(activeReadyCheckId)) {
+      return;
+    }
+
+    syncedReadyChecks.current.add(activeReadyCheckId);
+
+    if (roomState.readyCheck.viewerCanRespond) {
+      playReadyCheckNoSound();
+    }
+
+    void syncReadyCheckTimeout({
+      roomId: roomState.room.id,
+    }).catch(() => null);
+  }, [
+    activeReadyCheckId,
+    playReadyCheckNoSound,
+    remainingReadyCheckSeconds,
+    roomState,
+    syncReadyCheckTimeout,
+  ]);
+
+  useEffect(() => {
+    if (
+      !roomState?.readyCheck?.isActive ||
+      !roomState.readyCheck.viewerCanRespond ||
+      !activeReadyCheckKey
+    ) {
+      return;
+    }
+
+    if (soundedReadyChecks.current.has(activeReadyCheckKey)) {
+      return;
+    }
+
+    soundedReadyChecks.current.add(activeReadyCheckKey);
+    playReadyCheckPromptSound();
+  }, [activeReadyCheckKey, playReadyCheckPromptSound, roomState]);
 
   useEffect(() => {
     if (
@@ -431,6 +496,8 @@ export function RoomPage({ slug }: { slug: string }) {
   const isVoting = roomState.room.status === "voting";
   const isRevealed = roomState.room.status === "revealed";
   const hasVotingTimer = roomState.room.votingTimeLimitSeconds != null;
+  const hasReadyCheck = roomState.readyCheck != null;
+  const readyCheckCanRespond = roomState.readyCheck?.viewerCanRespond === true;
   const roomUrl = typeof window === "undefined" ? `/rooms/${slug}` : window.location.href;
 
   async function runBusyTask(task: () => Promise<unknown>, errorMessage: string) {
@@ -682,6 +749,90 @@ export function RoomPage({ slug }: { slug: string }) {
                 </div>
               ) : null}
 
+              {hasReadyCheck ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-black/[0.12] px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+                      Ready check
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {roomState.readyCheck?.isActive
+                        ? roomState.viewer.isOwner
+                          ? "Participants have 15 seconds to confirm they are ready."
+                          : readyCheckCanRespond
+                            ? "Answer Yes or No before the timer runs out."
+                            : roomState.readyCheck?.viewerStatus === "yes"
+                            ? "You answered Yes."
+                            : roomState.readyCheck?.viewerStatus === "no"
+                              ? "You answered No."
+                              : "Waiting for ready check responses."
+                        : roomState.readyCheck?.result === "all_ready"
+                          ? "All participants are ready."
+                          : roomState.readyCheck?.result === "not_all_ready"
+                            ? "Not all participants are ready."
+                            : "Ready check closed. Latest responses stay on the participant list."}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {roomState.readyCheck?.isActive && remainingReadyCheckSeconds !== null ? (
+                      <span className={cn(
+                        "rounded-full border px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.12em]",
+                        remainingReadyCheckSeconds <= 5
+                          ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                          : "border-white/[0.08] bg-white/[0.04] text-muted-foreground",
+                      )}>
+                        {remainingReadyCheckSeconds}s left
+                      </span>
+                    ) : null}
+                    {readyCheckCanRespond ? (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={isBusy}
+                          onClick={() => {
+                            playReadyCheckYesSound();
+                            void runBusyTask(async () => {
+                              await respondReadyCheck({
+                                roomId: roomState.room.id,
+                                participantId: roomState.viewer.participantId,
+                                answer: "yes",
+                                guestToken: guestToken ?? undefined,
+                                ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                              });
+                            }, "Could not respond to the ready check");
+                          }}
+                        >
+                          <Check className="size-4" />
+                          Yes
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={isBusy}
+                          onClick={() => {
+                            playReadyCheckNoSound();
+                            void runBusyTask(async () => {
+                              await respondReadyCheck({
+                                roomId: roomState.room.id,
+                                participantId: roomState.viewer.participantId,
+                                answer: "no",
+                                guestToken: guestToken ?? undefined,
+                                ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                              });
+                            }, "Could not respond to the ready check");
+                          }}
+                        >
+                          <X className="size-4" />
+                          No
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
               {/* Leave button for guest sessions */}
               {guestToken && !roomState.viewer.isOwner ? (
                 <Button
@@ -843,6 +994,7 @@ export function RoomPage({ slug }: { slug: string }) {
             <RoundControls
               status={roomState.room.status}
               canManage={canManage}
+              readyCheckActive={roomState.readyCheck?.isActive === true}
               isBusy={isBusy}
               onStart={() =>
                 runBusyTask(async () => {
@@ -859,6 +1011,14 @@ export function RoomPage({ slug }: { slug: string }) {
                     ...(guestOwnerToken ? { guestOwnerToken } : {}),
                   });
                 }, "Could not restart the round")
+              }
+              onReadyCheck={() =>
+                runBusyTask(async () => {
+                  await startReadyCheck({
+                    roomId: roomState.room.id,
+                    ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                  });
+                }, "Could not start the ready check")
               }
               onForceFinish={() =>
                 runBusyTask(async () => {

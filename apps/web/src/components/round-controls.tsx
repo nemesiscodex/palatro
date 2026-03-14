@@ -5,18 +5,22 @@ import { switch006Sound } from "@/lib/switch-006";
 interface RoundControlsProps {
   status: "idle" | "voting" | "revealed";
   canManage: boolean;
+  readyCheckActive?: boolean;
   isBusy?: boolean;
   onStart: () => Promise<void>;
   onRestart: () => Promise<void>;
+  onReadyCheck: () => Promise<void>;
   onForceFinish: () => Promise<void>;
 }
 
 export default function RoundControls({
   status,
   canManage,
+  readyCheckActive = false,
   isBusy = false,
   onStart,
   onRestart,
+  onReadyCheck,
   onForceFinish,
 }: RoundControlsProps) {
   const playControlActionSound = useAppSound(switch006Sound, { volumeMultiplier: 0.65 });
@@ -66,6 +70,18 @@ export default function RoundControls({
         className="w-full justify-center"
       >
         Restart round
+      </Button>
+      <Button
+        type="button"
+        variant="secondary"
+        disabled={isBusy || readyCheckActive}
+        onClick={() => {
+          playControlActionSound();
+          void onReadyCheck();
+        }}
+        className="w-full justify-center"
+      >
+        Ready check
       </Button>
       <Button
         type="button"

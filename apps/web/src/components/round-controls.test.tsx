@@ -17,6 +17,7 @@ describe("RoundControls", () => {
         canManage={false}
         onStart={vi.fn()}
         onRestart={vi.fn()}
+        onReadyCheck={vi.fn()}
         onForceFinish={vi.fn()}
       />,
     );
@@ -31,6 +32,7 @@ describe("RoundControls", () => {
         canManage
         onStart={vi.fn()}
         onRestart={vi.fn()}
+        onReadyCheck={vi.fn()}
         onForceFinish={vi.fn()}
       />,
     );
@@ -43,6 +45,7 @@ describe("RoundControls", () => {
     playRoundControlSound.mockReset();
     const onStart = vi.fn().mockResolvedValue(undefined);
     const onRestart = vi.fn().mockResolvedValue(undefined);
+    const onReadyCheck = vi.fn().mockResolvedValue(undefined);
     const onForceFinish = vi.fn().mockResolvedValue(undefined);
 
     render(
@@ -51,24 +54,28 @@ describe("RoundControls", () => {
         canManage
         onStart={onStart}
         onRestart={onRestart}
+        onReadyCheck={onReadyCheck}
         onForceFinish={onForceFinish}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Deal the cards$/ }));
     fireEvent.click(screen.getByRole("button", { name: "Restart round" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ready check" }));
     fireEvent.click(screen.getByRole("button", { name: "Force reveal" }));
 
     expect(onStart).toHaveBeenCalledTimes(1);
     expect(onRestart).toHaveBeenCalledTimes(1);
+    expect(onReadyCheck).toHaveBeenCalledTimes(1);
     expect(onForceFinish).not.toHaveBeenCalled();
-    expect(playRoundControlSound).toHaveBeenCalledTimes(2);
+    expect(playRoundControlSound).toHaveBeenCalledTimes(3);
   });
 
-  it("plays sound for restart and force reveal during voting", () => {
+  it("plays sound for restart, ready check, and force reveal during voting", () => {
     playRoundControlSound.mockReset();
     const onStart = vi.fn().mockResolvedValue(undefined);
     const onRestart = vi.fn().mockResolvedValue(undefined);
+    const onReadyCheck = vi.fn().mockResolvedValue(undefined);
     const onForceFinish = vi.fn().mockResolvedValue(undefined);
 
     render(
@@ -77,17 +84,36 @@ describe("RoundControls", () => {
         canManage
         onStart={onStart}
         onRestart={onRestart}
+        onReadyCheck={onReadyCheck}
         onForceFinish={onForceFinish}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Start pointing$/ }));
     fireEvent.click(screen.getByRole("button", { name: "Restart round" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ready check" }));
     fireEvent.click(screen.getByRole("button", { name: "Force reveal" }));
 
-    expect(playRoundControlSound).toHaveBeenCalledTimes(2);
+    expect(playRoundControlSound).toHaveBeenCalledTimes(3);
     expect(onStart).not.toHaveBeenCalled();
     expect(onRestart).toHaveBeenCalledTimes(1);
+    expect(onReadyCheck).toHaveBeenCalledTimes(1);
     expect(onForceFinish).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables ready check while one is already active", () => {
+    render(
+      <RoundControls
+        status="idle"
+        canManage
+        readyCheckActive
+        onStart={vi.fn()}
+        onRestart={vi.fn()}
+        onReadyCheck={vi.fn()}
+        onForceFinish={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Ready check" })).toBeDisabled();
   });
 });
