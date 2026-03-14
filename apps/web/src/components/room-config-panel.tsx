@@ -220,16 +220,18 @@ export default function RoomConfigPanel({
 
   return (
     <div className="grid gap-5">
+
+      {isEditorOpen && <p className="mt-1.5 w-full inline-flex items-center gap-1.5 rounded-full border border-white/6 bg-white/3 px-2.5 py-1 text-[0.6rem] uppercase tracking-[0.14em] text-muted-foreground/50">
+          <span className="h-1 w-1 rounded-full bg-current opacity-60" />
+          {editorStatusMessage}
+        </p>}
       {!isEditorOpen ? (
         <div className="grid min-w-0 gap-4 overflow-hidden rounded-[1.75rem] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
           {/* Header — stacked to avoid wrapping in narrow sidebar */}
           <div className="grid min-w-0 gap-3">
             <div className="min-w-0">
-              <p className="ornate-label break-words text-muted-foreground/70">Current configuration</p>
-              <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.03] px-2.5 py-1 text-[0.6rem] uppercase tracking-[0.14em] text-muted-foreground/50">
-                <span className="h-1 w-1 rounded-full bg-current opacity-60" />
-                {editorStatusMessage}
-              </p>
+              <p className="ornate-label wrap-break-words text-muted-foreground/70">Current configuration</p>
+              
             </div>
             <Button
               type="button"
@@ -293,7 +295,7 @@ export default function RoomConfigPanel({
             variant="ghost"
             size="sm"
             disabled={disabled}
-            className="rounded-full px-4 text-[0.65rem] uppercase tracking-[0.14em]"
+            className="w-full rounded-full px-4 text-[0.65rem] uppercase tracking-[0.14em]"
             onClick={toggleEditor}
           >
             Hide editor
