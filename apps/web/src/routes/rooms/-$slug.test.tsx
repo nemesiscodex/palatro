@@ -632,6 +632,7 @@ describe("RoomPage", () => {
 
     render(<RoomPage slug="demo-room" />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Edit configuration" }));
     fireEvent.click(screen.getByRole("button", { name: /Power of Two/ }));
     await waitFor(() => {
       expect(routeState.mutations.updateConfig).toHaveBeenCalledWith({

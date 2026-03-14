@@ -973,6 +973,13 @@ export function RoomPage({ slug }: { slug: string }) {
               hasPassword={roomState.room.hasPassword}
               allowPassword={roomState.room.ownerKind !== "guest"}
               disabled={!canManage || roomState.room.status === "voting" || isBusy}
+              statusMessage={!canManage
+                ? "Only the room owner can change configuration"
+                : roomState.room.status === "voting"
+                ? "Finish the current round to change configuration"
+                : isBusy
+                ? "Configuration is updating"
+                : "Changes apply instantly"}
               onUpdateConfig={async ({
                 scaleType,
                 customScaleValues,
