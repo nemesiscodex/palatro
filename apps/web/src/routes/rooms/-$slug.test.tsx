@@ -1232,7 +1232,15 @@ describe("RoomPage", () => {
     render(<RoomPage slug="demo-room" />);
 
     expect(screen.getByRole("heading", { name: "Sprint Poker" })).toHaveClass("break-words");
-    expect(screen.getByTestId("room-url-pill")).toHaveClass("min-w-0", "max-w-full", "truncate");
+    expect(screen.getByTestId("room-url-pill")).toHaveClass(
+      "block",
+      "min-w-0",
+      "max-w-full",
+      "break-all",
+      "whitespace-normal",
+      "sm:truncate",
+      "sm:whitespace-nowrap",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Show QR" }));
 
@@ -1254,7 +1262,14 @@ describe("RoomPage", () => {
     expect(screen.getByText("Point a phone camera at the code to join this room.")).toBeInTheDocument();
     expect(screen.getByAltText(`QR code for ${expectedRoomUrl}`)).toBeInTheDocument();
     expect(screen.getByTestId("inline-qr-panel")).toHaveClass("min-w-0", "overflow-hidden");
-    expect(screen.getByTestId("inline-qr-url")).toHaveClass("min-w-0", "max-w-full", "truncate");
+    expect(screen.getByTestId("inline-qr-url")).toHaveClass(
+      "min-w-0",
+      "max-w-full",
+      "break-all",
+      "whitespace-normal",
+      "sm:truncate",
+      "sm:whitespace-nowrap",
+    );
     expect(screen.getByTestId("inline-qr-actions")).toHaveClass("min-w-0", "grid-cols-1", "sm:grid-cols-2");
 
     fireEvent.click(screen.getByRole("button", { name: "Full screen" }));

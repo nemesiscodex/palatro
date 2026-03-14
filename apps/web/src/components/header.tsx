@@ -52,9 +52,9 @@ export default function Header() {
           </Link>
           <div
             data-testid="header-actions"
-            className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap sm:gap-2.5"
+            className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 [&>*]:min-w-0 sm:w-auto sm:flex-nowrap sm:gap-2.5"
           >
-            <nav className="flex flex-wrap justify-end gap-2 text-sm">
+            <nav className="flex min-w-0 flex-wrap justify-end gap-2 text-sm">
               {links.map(({ to, label }) => {
                 return (
                   <Link

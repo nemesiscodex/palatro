@@ -651,7 +651,7 @@ export function RoomPage({ slug }: { slug: string }) {
               {/* URL + copy */}
               <code
                 data-testid="room-url-pill"
-                className="min-w-0 max-w-full basis-full truncate rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[0.6rem] text-muted-foreground/50 font-mono sm:basis-auto sm:max-w-[26rem] lg:max-w-[30rem]"
+                className="block min-w-0 max-w-full basis-full overflow-hidden break-all whitespace-normal rounded-2xl border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[0.6rem] text-muted-foreground/50 font-mono sm:basis-auto sm:max-w-[26rem] sm:truncate sm:whitespace-nowrap sm:rounded-full lg:max-w-[30rem]"
                 title={roomUrl}
               >
                 {roomUrl}
@@ -1078,7 +1078,7 @@ export function RoomPage({ slug }: { slug: string }) {
                   <div className="min-w-0 rounded-xl border border-white/[0.06] bg-black/20 px-3 py-2">
                     <p
                       data-testid="inline-qr-url"
-                      className="block min-w-0 max-w-full truncate text-[0.62rem] font-mono text-muted-foreground/40"
+                      className="block min-w-0 max-w-full break-all whitespace-normal text-[0.62rem] font-mono text-muted-foreground/40 sm:truncate sm:whitespace-nowrap"
                       title={roomUrl}
                     >
                       {roomUrl}
@@ -1237,7 +1237,7 @@ export function RoomPage({ slug }: { slug: string }) {
             {/* URL and actions */}
             <div className="stagger-rise mt-6 space-y-4" style={{ animationDelay: "200ms" }}>
               <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3 sm:flex-row sm:items-center">
-                <code className="min-w-0 flex-1 truncate text-[0.65rem] font-mono text-muted-foreground/45">
+                <code className="block min-w-0 flex-1 break-all whitespace-normal text-[0.65rem] font-mono text-muted-foreground/45 sm:truncate sm:whitespace-nowrap">
                   {roomUrl}
                 </code>
                 <CopyUrlButton

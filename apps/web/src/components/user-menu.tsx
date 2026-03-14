@@ -16,12 +16,27 @@ import { Button } from "./ui/button";
 
 export default function UserMenu() {
   const user = useQuery(api.auth.getCurrentUser);
+  const accountLabel = user?.name ?? "Account";
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-        <span className="mr-1.5 text-xs text-primary/50">{"\u2660"}</span>
-        {user?.name ?? "Account"}
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full min-w-0 shrink justify-start overflow-hidden px-4 sm:w-auto sm:max-w-[12rem] sm:justify-center"
+          />
+        }
+      >
+        <span className="mr-1.5 shrink-0 text-xs text-primary/50">{"\u2660"}</span>
+        <span
+          data-testid="user-menu-trigger-label"
+          className="min-w-0 flex-1 truncate text-left sm:flex-none"
+          title={accountLabel}
+        >
+          {accountLabel}
+        </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-72 p-2">
         <DropdownMenuGroup>
