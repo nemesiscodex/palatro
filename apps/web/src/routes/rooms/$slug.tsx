@@ -621,10 +621,14 @@ export function RoomPage({ slug }: { slug: string }) {
                 <p className="mt-2 text-sm text-muted-foreground">
                   Create an account to claim it, keep it longer, and manage rooms from anywhere.
                 </p>
-                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <div
+                  data-testid="guest-claim-actions"
+                  className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap"
+                >
                   <Button
                     type="button"
                     size="sm"
+                    className="w-full min-w-0 whitespace-normal text-center sm:w-auto"
                     onClick={() => {
                       window.location.assign(`/?redirectTo=${encodeURIComponent(`/rooms/${slug}`)}`);
                     }}
@@ -636,6 +640,7 @@ export function RoomPage({ slug }: { slug: string }) {
                       type="button"
                       size="sm"
                       variant="ghost"
+                      className="w-full min-w-0 whitespace-normal text-center sm:w-auto"
                       onClick={() => {
                         window.location.assign(`/?redirectTo=${encodeURIComponent(`/rooms/${slug}`)}&mode=signin`);
                       }}

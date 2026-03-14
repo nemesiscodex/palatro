@@ -380,6 +380,13 @@ describe("RoomPage", () => {
     expect(
       screen.getByRole("button", { name: "Create account to claim" }),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("guest-claim-actions")).toHaveClass("min-w-0", "flex-col", "sm:flex-row");
+    expect(screen.getByRole("button", { name: "Create account to claim" })).toHaveClass(
+      "w-full",
+      "min-w-0",
+      "whitespace-normal",
+      "sm:w-auto",
+    );
     expect(screen.queryByText("Room password")).not.toBeInTheDocument();
 
     await waitFor(() => {
