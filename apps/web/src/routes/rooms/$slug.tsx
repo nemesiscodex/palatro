@@ -598,19 +598,6 @@ export function RoomPage({ slug }: { slug: string }) {
                 variant="ghost"
                 className="min-w-0"
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="min-w-0"
-                disabled={isGeneratingQrCode}
-                onClick={() => {
-                  void toggleInlineQrCode();
-                }}
-              >
-                <QrCode />
-                {isGeneratingQrCode ? "Preparing QR..." : isInlineQrVisible ? "Hide QR" : "Show QR"}
-              </Button>
             </div>
 
             {roomState.room.ownerKind === "guest" && roomState.viewer.isOwner ? (
@@ -887,6 +874,21 @@ export function RoomPage({ slug }: { slug: string }) {
                 Only the room owner can manage rounds.
               </p>
             ) : null}
+
+              <div className="mt-4"><Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="min-w-0  w-full"
+                disabled={isGeneratingQrCode}
+                onClick={() => {
+                  void toggleInlineQrCode();
+                }}
+              >
+                <QrCode />
+                {isGeneratingQrCode ? "Preparing QR..." : isInlineQrVisible ? "Hide QR" : "Show QR"}
+              </Button>
+              </div>
               {isInlineQrVisible ? (
                 <div
                   data-testid="inline-qr-panel"

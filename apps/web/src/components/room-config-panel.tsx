@@ -193,8 +193,8 @@ export default function RoomConfigPanel({
       : "Custom scale"
     : SCALE_OPTIONS.find((option) => option.value === draftScaleType)?.label ?? "Unknown";
   const consensusSummary = draftConsensusMode === "threshold"
-    ? `Threshold at ${draftConsensusThreshold}%`
-    : "Most voted wins";
+    ? `${draftConsensusThreshold}% of votes`
+    : "Most voted";
   const timerSummary = draftVotingTimeLimitSeconds === undefined
     ? "Off"
     : formatVotingTimeLimitLabel(draftVotingTimeLimitSeconds);
@@ -219,16 +219,16 @@ export default function RoomConfigPanel({
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-1">
 
       {isEditorOpen && <p className="mt-1.5 w-full inline-flex items-center gap-1.5 rounded-full border border-white/6 bg-white/3 px-2.5 py-1 text-[0.6rem] uppercase tracking-[0.14em] text-muted-foreground/50">
           <span className="h-1 w-1 rounded-full bg-current opacity-60" />
           {editorStatusMessage}
         </p>}
       {!isEditorOpen ? (
-        <div className="grid min-w-0 gap-4 overflow-hidden rounded-[1.75rem] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.015))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div >
           {/* Header — stacked to avoid wrapping in narrow sidebar */}
-          <div className="grid min-w-0 gap-3">
+          <div className="grid gap-1">
             <div className="min-w-0">
               <p className="ornate-label wrap-break-words text-muted-foreground/70">Current configuration</p>
               
@@ -253,28 +253,28 @@ export default function RoomConfigPanel({
               <span className="mt-0.5 text-sm text-primary/30">{"♠"}</span>
               <div className="min-w-0">
                 <p className="text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground/45">Scale</p>
-                <p className="mt-0.5 break-words text-sm font-medium text-foreground">{scaleSummary}</p>
+                <p className="mt-0.5 wrap-break-words text-sm font-medium text-foreground">{scaleSummary}</p>
               </div>
             </div>
             <div className="flex min-w-0 items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 px-3.5 py-3">
               <span className="mt-0.5 text-sm text-primary/30">{"♦"}</span>
               <div className="min-w-0">
                 <p className="text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground/45">Consensus</p>
-                <p className="mt-0.5 break-words text-sm font-medium text-foreground">{consensusSummary}</p>
+                <p className="mt-0.5 wrap-break-words text-sm font-medium text-foreground">{consensusSummary}</p>
               </div>
             </div>
             <div className="flex min-w-0 items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 px-3.5 py-3">
               <span className="mt-0.5 text-sm text-primary/30">{"♣"}</span>
               <div className="min-w-0">
                 <p className="text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground/45">Voting timer</p>
-                <p className="mt-0.5 break-words text-sm font-medium text-foreground">{timerSummary}</p>
+                <p className="mt-0.5 wrap-break-words text-sm font-medium text-foreground">{timerSummary}</p>
               </div>
             </div>
             <div className="flex min-w-0 items-start gap-3 rounded-2xl border border-white/[0.06] bg-black/20 px-3.5 py-3">
               <span className="mt-0.5 text-sm text-primary/30">{"♥"}</span>
               <div className="min-w-0">
                 <p className="text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground/45">Host role</p>
-                <p className="mt-0.5 break-words text-sm font-medium text-foreground">{hostSummary}</p>
+                <p className="mt-0.5 wrap-break-words text-sm font-medium text-foreground">{hostSummary}</p>
               </div>
             </div>
             {allowPassword ? (
@@ -282,7 +282,7 @@ export default function RoomConfigPanel({
                 <span className="mt-0.5 text-sm text-primary/30">{"♠"}</span>
                 <div className="min-w-0">
                   <p className="text-[0.62rem] uppercase tracking-[0.16em] text-muted-foreground/45">Room password</p>
-                  <p className="mt-0.5 break-words text-sm font-medium text-foreground">{passwordSummary}</p>
+                  <p className="mt-0.5 wrap-break-words text-sm font-medium text-foreground">{passwordSummary}</p>
                 </div>
               </div>
             ) : null}
@@ -495,7 +495,6 @@ export default function RoomConfigPanel({
                   </p>
                   <span className="rounded-full border border-primary/20 bg-primary/[0.06] px-3 py-1 text-[0.7rem] uppercase tracking-[0.12em] text-foreground">
                     {draftConsensusThreshold}%
-                    {draftConsensusThreshold === DEFAULT_CONSENSUS_THRESHOLD ? " Recommended" : ""}
                   </span>
                 </div>
                 <input
