@@ -315,4 +315,23 @@ describe("CreateRoomForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /Timer off/i }));
     expect(screen.queryByLabelText("Voting time limit")).not.toBeInTheDocument();
   });
+
+  it("uses mobile-safe classes for timer and consensus controls", () => {
+    render(<CreateRoomForm onCreateRoom={onCreateRoom} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Timer on/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Consensus threshold/i }));
+
+    const timerToggleRow = screen.getByRole("button", { name: /Timer off/i }).parentElement;
+    const timerTicks = screen.getByTestId("voting-time-limit-desktop-labels");
+    const thresholdTicks = screen.getByTestId("consensus-threshold-desktop-labels");
+    const mobileTimerTicks = screen.getByTestId("voting-time-limit-mobile-labels");
+    const mobileThresholdTicks = screen.getByTestId("consensus-threshold-mobile-labels");
+
+    expect(timerToggleRow).toHaveClass("grid-cols-1", "sm:grid-cols-2");
+    expect(timerTicks).toHaveClass("hidden", "sm:grid");
+    expect(thresholdTicks).toHaveClass("hidden", "sm:grid");
+    expect(mobileTimerTicks).toHaveClass("sm:hidden");
+    expect(mobileThresholdTicks).toHaveClass("sm:hidden");
+  });
 });

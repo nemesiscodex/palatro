@@ -82,6 +82,10 @@ export default function RoomConfigPanel({
     votingTimeLimitSeconds ?? undefined,
   );
   const passwordInputRef = useRef<HTMLInputElement>(null);
+  const firstConsensusThreshold = CONSENSUS_THRESHOLD_PRESETS[0];
+  const lastConsensusThreshold = CONSENSUS_THRESHOLD_PRESETS[CONSENSUS_THRESHOLD_PRESETS.length - 1];
+  const firstVotingTimeLimit = VOTING_TIME_LIMIT_OPTION_VALUES[0];
+  const lastVotingTimeLimit = VOTING_TIME_LIMIT_OPTION_VALUES[VOTING_TIME_LIMIT_OPTION_VALUES.length - 1];
 
   useEffect(() => {
     if (!isEditingPassword) {
@@ -242,6 +246,7 @@ export default function RoomConfigPanel({
               </label>
               <Input
                 id="room-custom-scale-values"
+                name="roomCustomScaleValues"
                 value={customScaleInput}
                 disabled={disabled}
                 onBlur={() => setCustomScaleTouched(true)}
@@ -378,6 +383,7 @@ export default function RoomConfigPanel({
             </div>
             <input
               aria-label="Consensus threshold"
+              name="roomConsensusThreshold"
               type="range"
               min={0}
               max={CONSENSUS_THRESHOLD_PRESETS.length - 1}
@@ -391,7 +397,18 @@ export default function RoomConfigPanel({
               }}
               className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[hsl(var(--primary))] disabled:cursor-not-allowed disabled:opacity-40"
             />
-            <div className="grid grid-cols-5 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60">
+            <div
+              data-testid="room-consensus-threshold-mobile-labels"
+              className="grid grid-cols-3 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60 sm:hidden"
+            >
+              <span>{firstConsensusThreshold}%</span>
+              <span className="font-medium text-primary">{draftConsensusThreshold}%</span>
+              <span>{lastConsensusThreshold}%</span>
+            </div>
+            <div
+              data-testid="room-consensus-threshold-desktop-labels"
+              className="hidden grid-cols-5 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60 sm:grid"
+            >
               {CONSENSUS_THRESHOLD_PRESETS.map((value) => (
                 <span
                   key={value}
@@ -409,7 +426,7 @@ export default function RoomConfigPanel({
         <div className="gold-rule" />
         <p className="ornate-label text-muted-foreground/70">Voting timer</p>
         <div className="grid gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               type="button"
               disabled={disabled}
@@ -466,6 +483,7 @@ export default function RoomConfigPanel({
               </div>
               <input
                 aria-label="Voting time limit"
+                name="roomVotingTimeLimit"
                 type="range"
                 min={0}
                 max={VOTING_TIME_LIMIT_OPTION_VALUES.length - 1}
@@ -479,7 +497,18 @@ export default function RoomConfigPanel({
                 }}
                 className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[hsl(var(--primary))] disabled:cursor-not-allowed disabled:opacity-40"
               />
-              <div className="grid grid-cols-6 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60">
+              <div
+                data-testid="room-voting-time-limit-mobile-labels"
+                className="grid grid-cols-3 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60 sm:hidden"
+              >
+                <span>{firstVotingTimeLimit}</span>
+                <span className="font-medium text-primary">{draftVotingTimeLimitSeconds}</span>
+                <span>{lastVotingTimeLimit}</span>
+              </div>
+              <div
+                data-testid="room-voting-time-limit-desktop-labels"
+                className="hidden grid-cols-6 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60 sm:grid"
+              >
                 {VOTING_TIME_LIMIT_OPTION_VALUES.map((value) => (
                   <span
                     key={value}
@@ -607,7 +636,10 @@ export default function RoomConfigPanel({
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div
+                data-testid="room-password-actions"
+                className="flex flex-col gap-2 sm:flex-row"
+              >
                 <Button
                   type="button"
                   variant="ghost"
@@ -662,13 +694,18 @@ export default function RoomConfigPanel({
             >
               <Input
                 ref={passwordInputRef}
+                name="roomPasswordDraft"
                 type="password"
                 value={passwordDraft}
                 onChange={(event) => setPasswordDraft(event.target.value)}
                 placeholder="Enter new password"
                 className="bg-black/10"
+                autoComplete="new-password"
               />
-              <div className="flex gap-2">
+              <div
+                data-testid="room-password-editor-actions"
+                className="flex flex-col gap-2 sm:flex-row"
+              >
                 <Button
                   type="submit"
                   size="sm"

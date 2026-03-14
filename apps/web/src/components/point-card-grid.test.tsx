@@ -31,13 +31,15 @@ describe("PointCardGrid", () => {
   });
 
   it("renders each card in the deck and highlights the selected value", () => {
-    const { container } = render(
+    render(
       <PointCardGrid deck={["1", "2", "3"]} selectedValue="2" onSelect={vi.fn()} />,
     );
 
     expect(screen.getAllByRole("button")).toHaveLength(3);
-    expect(container.querySelectorAll(".ring-2")).toHaveLength(1);
+    expect(document.querySelectorAll(".ring-2")).toHaveLength(1);
     expect(screen.getAllByText("2").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("point-card-grid")).toHaveClass("grid-cols-3", "min-[420px]:grid-cols-4");
+    expect(screen.getAllByRole("button")[0]).toHaveClass("h-[6.25rem]", "sm:h-[7.5rem]");
   });
 
   it("blocks selection when disabled", () => {

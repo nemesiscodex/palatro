@@ -35,10 +35,9 @@ function RouteComponent() {
 
 export function DashboardPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const apiAny = api as any;
-  const rooms = useQuery(apiAny.rooms.listMine, !isLoading && isAuthenticated ? {} : "skip");
-  const createRoom = useMutation(apiAny.rooms.create);
-  const deleteRoom = useMutation(apiAny.rooms.remove);
+  const rooms = useQuery(api.rooms.listMine, !isLoading && isAuthenticated ? {} : "skip");
+  const createRoom = useMutation(api.rooms.create);
+  const deleteRoom = useMutation(api.rooms.remove);
   const posthog = usePostHog();
 
   useEffect(() => {
@@ -52,7 +51,7 @@ export function DashboardPage() {
   return (
     <>
       <Authenticated>
-        <main className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
+        <main className="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 sm:gap-8 sm:px-5 sm:py-8 lg:grid-cols-[minmax(320px,420px)_minmax(0,1fr)]">
           <section className="grid content-start gap-6">
             {/* Hero panel */}
             <div className="felt-panel stagger-rise relative overflow-hidden rounded-[2rem] px-6 py-6">
@@ -64,7 +63,7 @@ export function DashboardPage() {
               <p className="ornate-label text-primary/60">Dealer station</p>
               <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
                 <div>
-                  <h1 className="font-serif text-[2.8rem] leading-[0.9] text-foreground">
+                  <h1 className="font-serif text-[2.35rem] leading-[0.9] text-foreground sm:text-[2.8rem]">
                     Run rounds
                     <br />
                     <span className="text-gold-gradient italic overflow-visible inline-block pr-[0.1em]">like a card room.</span>
@@ -74,7 +73,7 @@ export function DashboardPage() {
                     focused on the next decision.
                   </p>
                 </div>
-                <div className="grid min-w-32 gap-1 text-right">
+                <div className="grid min-w-24 gap-1 text-right sm:min-w-32">
                   <span className="ornate-label text-primary/50">Open Rooms</span>
                   <span className="text-gold-gradient font-serif text-5xl font-bold leading-none">
                     {(rooms ?? []).length}
@@ -156,7 +155,7 @@ export function DashboardPage() {
             {/* Room list */}
             <div className="stagger-rise" style={{ animationDelay: "180ms" }}>
               <RoomList
-                rooms={(rooms ?? []) as any}
+                rooms={rooms ?? []}
                 onDeleteRoom={(room) => {
                   if (
                     typeof window !== "undefined" &&
@@ -165,7 +164,7 @@ export function DashboardPage() {
                     return;
                   }
 
-                  void deleteRoom({ roomId: room.id as any })
+                  void deleteRoom({ roomId: room.id })
                     .then(() => {
                       toast.success("Room deleted");
                     })

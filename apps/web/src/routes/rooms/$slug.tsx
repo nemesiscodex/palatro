@@ -106,10 +106,19 @@ function RoomRouteComponent() {
   return <RoomPage slug={slug} />;
 }
 
+interface CopyUrlButtonRoomState {
+  room: {
+    id: unknown;
+  };
+  viewer: {
+    isOwner: boolean;
+  };
+}
+
 function CopyUrlButton({ url, posthog, roomState, slug, playBlockedActionSound, variant = "outline", className }: {
   url: string;
   posthog: ReturnType<typeof usePostHog>;
-  roomState: any;
+  roomState: CopyUrlButtonRoomState;
   slug: string;
   playBlockedActionSound: () => void;
   variant?: "outline" | "ghost";
@@ -155,7 +164,6 @@ function CopyUrlButton({ url, posthog, roomState, slug, playBlockedActionSound, 
 }
 
 export function RoomPage({ slug }: { slug: string }) {
-  const apiAny = api as any;
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [guestOwnerToken, setGuestOwnerToken] = useState<string | null>(null);
   const [storageReady, setStorageReady] = useState(false);
@@ -189,7 +197,7 @@ export function RoomPage({ slug }: { slug: string }) {
   }, [slug]);
 
   const roomState = useQuery(
-    apiAny.rooms.getBySlug,
+    api.rooms.getBySlug,
     storageReady
       ? { slug, guestToken: guestToken ?? undefined, guestOwnerToken: guestOwnerToken ?? undefined }
       : "skip",
@@ -200,20 +208,20 @@ export function RoomPage({ slug }: { slug: string }) {
     roomState?.viewer.participantKind === "host" && !hostVotingEnabled;
   const isViewOnlyParticipant = roomState?.viewer.participantKind === "viewer";
 
-  const joinAsGuest = useMutation(apiAny.participants.joinAsGuest);
-  const joinAsViewer = useMutation(apiAny.participants.joinAsViewer);
-  const joinAsHost = useMutation(apiAny.participants.joinAsHost);
-  const heartbeat = useMutation(apiAny.participants.heartbeat);
-  const leave = useMutation(apiAny.participants.leave);
-  const kick = useMutation(apiAny.participants.kick);
-  const castVote = useMutation(apiAny.rounds.castVote);
-  const startRound = useMutation(apiAny.rounds.start);
-  const restartRound = useMutation(apiAny.rounds.restart);
-  const forceFinish = useMutation(apiAny.rounds.forceFinish);
-  const syncTimeout = useMutation(apiAny.rounds.syncTimeout);
-  const updateConfig = useMutation(apiAny.rooms.updateConfig);
-  const updatePassword = useMutation(apiAny.rooms.updatePassword);
-  const claimGuestOwnership = useMutation(apiAny.rooms.claimGuestOwnership);
+  const joinAsGuest = useMutation(api.participants.joinAsGuest);
+  const joinAsViewer = useMutation(api.participants.joinAsViewer);
+  const joinAsHost = useMutation(api.participants.joinAsHost);
+  const heartbeat = useMutation(api.participants.heartbeat);
+  const leave = useMutation(api.participants.leave);
+  const kick = useMutation(api.participants.kick);
+  const castVote = useMutation(api.rounds.castVote);
+  const startRound = useMutation(api.rounds.start);
+  const restartRound = useMutation(api.rounds.restart);
+  const forceFinish = useMutation(api.rounds.forceFinish);
+  const syncTimeout = useMutation(api.rounds.syncTimeout);
+  const updateConfig = useMutation(api.rooms.updateConfig);
+  const updatePassword = useMutation(api.rooms.updatePassword);
+  const claimGuestOwnership = useMutation(api.rooms.claimGuestOwnership);
 
   useEffect(() => {
     if (
@@ -516,19 +524,27 @@ export function RoomPage({ slug }: { slug: string }) {
 
   return (
     <>
-      <main className="mx-auto grid w-full max-w-7xl items-start gap-8 px-5 py-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,360px)]">
+      <main className="mx-auto grid w-full max-w-7xl items-start gap-6 px-4 py-6 sm:gap-8 sm:px-5 sm:py-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(300px,360px)]">
         <section data-testid="room-main-column" className="grid gap-4 lg:gap-5">
           {/* Room header */}
           <div className="stagger-rise">
             <div className="flex items-start gap-3">
-              <span className="mt-1 text-lg text-primary/30">{"\u2660"}</span>
-              <div>
+              <span className="mt-1 text-base text-primary/30 sm:text-lg">{"\u2660"}</span>
+              <div className="min-w-0">
                 <p className="ornate-label text-primary/50">Room {slug}</p>
-                <h1 className="mt-1 font-serif text-5xl leading-[0.9] tracking-tight">{roomState.room.name}</h1>
+                <h1
+                  data-testid="room-title"
+                  className="mt-1 break-words text-balance font-serif text-4xl leading-[0.92] tracking-tight sm:text-5xl"
+                >
+                  {roomState.room.name}
+                </h1>
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-3">
+            <div
+              data-testid="room-meta-row"
+              className="mt-4 flex flex-wrap items-center gap-2 sm:gap-3"
+            >
               {/* Status badge */}
               <span className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.18em]",
@@ -568,7 +584,7 @@ export function RoomPage({ slug }: { slug: string }) {
               {/* URL + copy */}
               <code
                 data-testid="room-url-pill"
-                className="min-w-0 max-w-full flex-none truncate rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[0.6rem] text-muted-foreground/50 font-mono sm:max-w-[26rem] lg:max-w-[30rem]"
+                className="min-w-0 max-w-full basis-full truncate rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 text-[0.6rem] text-muted-foreground/50 font-mono sm:basis-auto sm:max-w-[26rem] lg:max-w-[30rem]"
                 title={roomUrl}
               >
                 {roomUrl}
@@ -605,7 +621,7 @@ export function RoomPage({ slug }: { slug: string }) {
                 <p className="mt-2 text-sm text-muted-foreground">
                   Create an account to claim it, keep it longer, and manage rooms from anywhere.
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <Button
                     type="button"
                     size="sm"
@@ -655,7 +671,7 @@ export function RoomPage({ slug }: { slug: string }) {
             )}>
               {isVoting && hasVotingTimer && remainingVotingSeconds !== null ? (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-black/[0.12] px-4 py-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
                       Round timer
                     </p>
@@ -885,6 +901,8 @@ export function RoomPage({ slug }: { slug: string }) {
                         alt={`QR code for ${roomUrl}`}
                         className="relative z-0 mx-auto aspect-square w-full max-w-full brightness-[1.02] contrast-[1.05]"
                         src={qrCodeImageSrc}
+                        width={512}
+                        height={512}
                       />
                     ) : null}
                   </div>
@@ -903,7 +921,7 @@ export function RoomPage({ slug }: { slug: string }) {
                   {/* Action buttons — equal width */}
                   <div
                     data-testid="inline-qr-actions"
-                    className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-2 [&>*]:min-w-0"
+                    className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 [&>*]:min-w-0"
                   >
                     <Button
                       type="button"
@@ -992,7 +1010,10 @@ export function RoomPage({ slug }: { slug: string }) {
       <Dialog.Root open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl transition-opacity duration-300" />
-          <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(calc(100vw-2rem),36rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[2.5rem] border border-white/[0.1] bg-[radial-gradient(circle_at_top,_rgba(218,185,100,0.2),_transparent_55%),linear-gradient(180deg,rgba(22,15,11,0.98),rgba(10,8,7,0.99))] p-6 shadow-[0_40px_120px_rgba(0,0,0,0.6),0_0_0_1px_rgba(218,185,100,0.05)] sm:p-8">
+          <Dialog.Popup
+            data-testid="qr-dialog-popup"
+            className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100svh-2rem)] w-[min(calc(100vw-2rem),36rem)] -translate-x-1/2 -translate-y-1/2 overflow-x-hidden overflow-y-auto overscroll-contain rounded-[2.5rem] border border-white/[0.1] bg-[radial-gradient(circle_at_top,_rgba(218,185,100,0.2),_transparent_55%),linear-gradient(180deg,rgba(22,15,11,0.98),rgba(10,8,7,0.99))] px-[calc(1.5rem+env(safe-area-inset-left))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(1.5rem+env(safe-area-inset-top))] pr-[calc(1.5rem+env(safe-area-inset-right))] shadow-[0_40px_120px_rgba(0,0,0,0.6),0_0_0_1px_rgba(218,185,100,0.05)] sm:px-[calc(2rem+env(safe-area-inset-left))] sm:pb-[calc(2rem+env(safe-area-inset-bottom))] sm:pt-[calc(2rem+env(safe-area-inset-top))] sm:pr-[calc(2rem+env(safe-area-inset-right))]"
+          >
             {/* Decorative top glow */}
             <div className="pointer-events-none absolute -top-20 left-1/2 h-40 w-[80%] -translate-x-1/2 rounded-full bg-primary/10 blur-[60px]" />
 
@@ -1032,6 +1053,8 @@ export function RoomPage({ slug }: { slug: string }) {
                     alt={`QR code for ${roomUrl}`}
                     className="relative z-0 mx-auto aspect-square w-full max-w-[28rem] brightness-[1.02] contrast-[1.05]"
                     src={qrCodeImageSrc}
+                    width={512}
+                    height={512}
                   />
                 ) : null}
               </div>
@@ -1039,7 +1062,7 @@ export function RoomPage({ slug }: { slug: string }) {
 
             {/* URL and actions */}
             <div className="stagger-rise mt-6 space-y-4" style={{ animationDelay: "200ms" }}>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3">
+              <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.06] bg-black/20 px-4 py-3 sm:flex-row sm:items-center">
                 <code className="min-w-0 flex-1 truncate text-[0.65rem] font-mono text-muted-foreground/45">
                   {roomUrl}
                 </code>

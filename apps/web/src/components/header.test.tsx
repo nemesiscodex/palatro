@@ -48,15 +48,38 @@ describe("Header", () => {
 
   it("shows room pills for authenticated users", () => {
     mockState.auth = { isAuthenticated: true, isLoading: false };
-    mockState.rooms = [{ id: "room-1", slug: "demo-room", name: "Demo Room" }];
+    mockState.rooms = [
+      {
+        id: "room-1",
+        slug: "demo-room",
+        name: "Demo Room With An Extraordinarily Long Name For Narrow Screens",
+      },
+    ];
 
     render(<Header />);
 
     expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByText("Rooms")).toBeInTheDocument();
-    expect(screen.getByText("Demo Room")).toBeInTheDocument();
+    expect(screen.getByRole("banner").firstElementChild).toHaveClass("px-4", "sm:px-5");
+    expect(screen.getByRole("link", { name: /demo room with an extraordinarily long name/i })).toHaveClass(
+      "min-w-0",
+      "max-w-full",
+      "truncate",
+    );
 
     mockState.auth = { isAuthenticated: false, isLoading: false };
     mockState.rooms = [];
+  });
+
+  it("uses wrapping layout classes for the mobile header chrome", () => {
+    mockState.auth = { isAuthenticated: true, isLoading: false };
+    mockState.rooms = [];
+
+    render(<Header />);
+
+    expect(screen.getByTestId("header-top")).toHaveClass("flex-wrap");
+    expect(screen.getByTestId("header-actions")).toHaveClass("w-full", "flex-wrap", "justify-end");
+
+    mockState.auth = { isAuthenticated: false, isLoading: false };
   });
 });

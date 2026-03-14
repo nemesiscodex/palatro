@@ -243,4 +243,33 @@ describe("RoomConfigPanel", () => {
       votingTimeLimitSeconds: 75,
     });
   });
+
+  it("uses mobile-safe slider label rows and stack-safe password actions", () => {
+    render(
+      <RoomConfigPanel
+        scaleType="fibonacci"
+        consensusMode="plurality"
+        consensusThreshold={70}
+        hostVotingEnabled={true}
+        votingTimeLimitSeconds={45}
+        hasPassword={true}
+        onUpdateConfig={vi.fn().mockResolvedValue(undefined)}
+        onUpdatePassword={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Consensus threshold/i }));
+
+    const votingTicks = screen.getByTestId("room-voting-time-limit-desktop-labels");
+    const consensusTicks = screen.getByTestId("room-consensus-threshold-desktop-labels");
+    const passwordActions = screen.getByTestId("room-password-actions");
+    const mobileVotingTicks = screen.getByTestId("room-voting-time-limit-mobile-labels");
+    const mobileConsensusTicks = screen.getByTestId("room-consensus-threshold-mobile-labels");
+
+    expect(votingTicks).toHaveClass("hidden", "sm:grid");
+    expect(consensusTicks).toHaveClass("hidden", "sm:grid");
+    expect(mobileVotingTicks).toHaveClass("sm:hidden");
+    expect(mobileConsensusTicks).toHaveClass("sm:hidden");
+    expect(passwordActions).toHaveClass("flex-col", "sm:flex-row");
+  });
 });

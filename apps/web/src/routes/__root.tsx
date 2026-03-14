@@ -46,6 +46,10 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
+        name: "theme-color",
+        content: "#071814",
+      },
+      {
         title: "Palatro — Pointing Poker",
       },
       {
@@ -167,7 +171,7 @@ function RootDocument() {
           </head>
           <body>
             <SoundSettingsProvider>
-              <div className="grid h-svh grid-rows-[auto_1fr]">
+              <div className="grid min-h-svh grid-rows-[auto_1fr]">
                 <Header />
                 <Outlet />
               </div>

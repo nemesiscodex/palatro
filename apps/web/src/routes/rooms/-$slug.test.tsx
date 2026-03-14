@@ -920,6 +920,7 @@ describe("RoomPage", () => {
 
     render(<RoomPage slug="demo-room" />);
 
+    expect(screen.getByRole("heading", { name: "Sprint Poker" })).toHaveClass("break-words");
     expect(screen.getByTestId("room-url-pill")).toHaveClass("min-w-0", "max-w-full", "truncate");
 
     fireEvent.click(screen.getByRole("button", { name: "Show QR" }));
@@ -943,12 +944,13 @@ describe("RoomPage", () => {
     expect(screen.getByAltText(`QR code for ${expectedRoomUrl}`)).toBeInTheDocument();
     expect(screen.getByTestId("inline-qr-panel")).toHaveClass("min-w-0", "overflow-hidden");
     expect(screen.getByTestId("inline-qr-url")).toHaveClass("min-w-0", "max-w-full", "truncate");
-    expect(screen.getByTestId("inline-qr-actions")).toHaveClass("min-w-0");
+    expect(screen.getByTestId("inline-qr-actions")).toHaveClass("min-w-0", "grid-cols-1", "sm:grid-cols-2");
 
     fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
 
-    const dialog = await screen.findByRole("dialog", { name: "Scan to join" });
+    const dialog = await screen.findByTestId("qr-dialog-popup");
     expect(within(dialog).getByAltText(`QR code for ${expectedRoomUrl}`)).toBeInTheDocument();
+    expect(dialog).toHaveClass("overflow-y-auto", "overscroll-contain", "max-h-[calc(100svh-2rem)]");
     expect(qrCodeToString).toHaveBeenCalledTimes(1);
     expect(routeState.posthogCapture).toHaveBeenCalledWith("room_qr_opened", {
       room_id: "room-1",
@@ -959,7 +961,7 @@ describe("RoomPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close QR code dialog" }));
 
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Scan to open this room" })).not.toBeInTheDocument();
+      expect(screen.queryByTestId("qr-dialog-popup")).not.toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Hide QR" }));

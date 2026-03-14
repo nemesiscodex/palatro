@@ -63,6 +63,10 @@ export default function CreateRoomForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isGuestMode = mode === "guest";
   const isCustomScale = scaleType === "custom";
+  const firstVotingTimeLimit = VOTING_TIME_LIMIT_OPTION_VALUES[0];
+  const lastVotingTimeLimit = VOTING_TIME_LIMIT_OPTION_VALUES[VOTING_TIME_LIMIT_OPTION_VALUES.length - 1];
+  const firstConsensusThreshold = CONSENSUS_THRESHOLD_PRESETS[0];
+  const lastConsensusThreshold = CONSENSUS_THRESHOLD_PRESETS[CONSENSUS_THRESHOLD_PRESETS.length - 1];
   let customScaleValues: string[] | undefined;
   let customScaleError: string | null = null;
 
@@ -126,10 +130,12 @@ export default function CreateRoomForm({
         <Label htmlFor="room-name">Room name</Label>
         <Input
           id="room-name"
+          name="roomName"
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Sprint planning"
           className="bg-black/10"
+          autoComplete="off"
         />
       </div>
 
@@ -143,10 +149,12 @@ export default function CreateRoomForm({
           <Label htmlFor="room-slug">Custom URL slug (optional)</Label>
           <Input
             id="room-slug"
+            name="roomSlug"
             value={slug}
             onChange={(event) => setSlug(event.target.value)}
             placeholder="Leave blank for random UUID"
             className="bg-black/10"
+            autoComplete="off"
           />
         </div>
       )}
@@ -179,6 +187,7 @@ export default function CreateRoomForm({
             <Label htmlFor="custom-scale-values">Custom scale values</Label>
             <Input
               id="custom-scale-values"
+              name="customScaleValues"
               value={customScaleInput}
               onBlur={() => setCustomScaleTouched(true)}
               onChange={(event) => {
@@ -209,7 +218,7 @@ export default function CreateRoomForm({
           Voting timer
         </p>
         <div className="grid gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={() => {
@@ -250,6 +259,7 @@ export default function CreateRoomForm({
               <input
                 id="voting-time-limit-slider"
                 aria-label="Voting time limit"
+                name="votingTimeLimit"
                 type="range"
                 min={0}
                 max={VOTING_TIME_LIMIT_OPTION_VALUES.length - 1}
@@ -260,7 +270,18 @@ export default function CreateRoomForm({
                 }}
                 className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[hsl(var(--primary))]"
               />
-              <div className="grid grid-cols-6 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60">
+              <div
+                data-testid="voting-time-limit-mobile-labels"
+                className="grid grid-cols-3 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60 sm:hidden"
+              >
+                <span>{firstVotingTimeLimit}</span>
+                <span className="font-medium text-primary">{votingTimeLimitSeconds}</span>
+                <span>{lastVotingTimeLimit}</span>
+              </div>
+              <div
+                data-testid="voting-time-limit-desktop-labels"
+                className="hidden grid-cols-6 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60 sm:grid"
+              >
                 {VOTING_TIME_LIMIT_OPTION_VALUES.map((value) => (
                   <span
                     key={value}
@@ -329,6 +350,7 @@ export default function CreateRoomForm({
             </div>
             <input
               aria-label="Consensus threshold"
+              name="consensusThreshold"
               type="range"
               min={0}
               max={CONSENSUS_THRESHOLD_PRESETS.length - 1}
@@ -339,7 +361,18 @@ export default function CreateRoomForm({
               }}
               className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[hsl(var(--primary))]"
             />
-            <div className="grid grid-cols-5 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60">
+            <div
+              data-testid="consensus-threshold-mobile-labels"
+              className="grid grid-cols-3 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60 sm:hidden"
+            >
+              <span>{firstConsensusThreshold}%</span>
+              <span className="font-medium text-primary">{consensusThreshold}%</span>
+              <span>{lastConsensusThreshold}%</span>
+            </div>
+            <div
+              data-testid="consensus-threshold-desktop-labels"
+              className="hidden grid-cols-5 gap-2 text-center text-[0.62rem] uppercase tracking-[0.12em] text-muted-foreground/60 sm:grid"
+            >
               {CONSENSUS_THRESHOLD_PRESETS.map((value) => (
                 <span
                   key={value}
@@ -418,11 +451,13 @@ export default function CreateRoomForm({
           {showPassword ? (
             <Input
               id="room-password"
+              name="roomPassword"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter room password"
               className="bg-black/10"
+              autoComplete="new-password"
             />
           ) : null}
         </div>

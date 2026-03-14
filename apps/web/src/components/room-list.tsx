@@ -1,12 +1,13 @@
 import { Link } from "@tanstack/react-router";
 
+import type { Id } from "@palatro/backend/convex/_generated/dataModel";
 import type { ScaleType } from "@palatro/backend/convex/pointingPoker";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface RoomSummary {
-  id: string;
+  id: Id<"rooms">;
   name: string;
   slug: string;
   scaleType: ScaleType;
@@ -71,9 +72,9 @@ export default function RoomList({
             }}
           >
             {/* Header row */}
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <h3 className="truncate font-serif text-xl leading-tight text-foreground">
+                <h3 className="break-words text-balance font-serif text-xl leading-tight text-foreground">
                   {room.name}
                 </h3>
                 <p className="mt-1 flex items-center gap-2 text-[0.62rem] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
@@ -98,10 +99,13 @@ export default function RoomList({
 
             {/* Footer row */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.05] pt-3">
-              <code className="rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1 text-[0.62rem] text-muted-foreground/60 font-mono">
+              <code
+                className="min-w-0 max-w-full truncate rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1 text-[0.62rem] text-muted-foreground/60 font-mono sm:max-w-[14rem]"
+                title={`/rooms/${room.slug}`}
+              >
                 /rooms/{room.slug}
               </code>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                 <Button
                   type="button"
                   variant="destructive"
@@ -116,7 +120,7 @@ export default function RoomList({
                 <Link
                   to="/rooms/$slug"
                   params={{ slug: room.slug }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground transition-all duration-200 hover:-translate-y-px hover:border-primary/30 hover:bg-primary/[0.06] hover:text-primary"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:-translate-y-px hover:border-primary/30 hover:bg-primary/[0.06] hover:text-primary"
                 >
                   <span className="text-primary/50">{"\u2192"}</span>
                   Open

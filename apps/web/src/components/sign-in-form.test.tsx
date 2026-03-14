@@ -107,4 +107,12 @@ describe("SignInForm", () => {
       expect(window.location.assign).toHaveBeenCalledWith("/rooms/demo-room");
     });
   });
+
+  it("sets mobile-friendly autocomplete and spellcheck attributes", () => {
+    render(<SignInForm onSwitchToSignUp={vi.fn()} />);
+
+    expect(screen.getByLabelText("Email")).toHaveAttribute("autocomplete", "email");
+    expect(screen.getByLabelText("Email")).toHaveAttribute("spellcheck", "false");
+    expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "current-password");
+  });
 });

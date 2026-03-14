@@ -73,6 +73,7 @@ export default function JoinRoomForm({
           <Label htmlFor="nickname">Your name</Label>
           <Input
             id="nickname"
+            name="nickname"
             value={nicknameValue}
             onChange={(event) => {
               setDidEditNickname(true);
@@ -80,12 +81,13 @@ export default function JoinRoomForm({
             }}
             placeholder="e.g. Alex"
             className="bg-black/10 text-center"
+            autoComplete="nickname"
           />
         </div>
         {allowViewerJoin ? (
           <div className="grid gap-2">
             <span className="text-sm font-medium">Join as</span>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Button
                 type="button"
                 variant={joinMode === "guest" ? "default" : "ghost"}
@@ -113,11 +115,13 @@ export default function JoinRoomForm({
             </Label>
             <Input
               id="room-password"
+              name="roomPassword"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter password"
               className="bg-black/10 text-center"
+              autoComplete="current-password"
             />
           </div>
         ) : null}

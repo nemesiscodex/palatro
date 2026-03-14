@@ -91,5 +91,9 @@ describe("root metadata", () => {
       name: "twitter:image",
       content: "https://palatro.nemesiscodex.org/banner.png",
     });
+    expect(meta).toContainEqual({
+      name: "theme-color",
+      content: "#071814",
+    });
   });
 });

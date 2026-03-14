@@ -53,7 +53,10 @@ export default function PointCardGrid({
   }, [deck.length, playDealCardsSound]);
 
   return (
-    <div className="grid grid-cols-4 gap-3 sm:gap-4">
+    <div
+      data-testid="point-card-grid"
+      className="grid grid-cols-3 gap-2.5 min-[420px]:grid-cols-4 sm:gap-4"
+    >
       {deck.map((value, index) => {
         const isSelected = selectedValue === value;
         const suit = getSuit(index);
@@ -75,7 +78,7 @@ export default function PointCardGrid({
             }}
             className={cn(
               "group/poker-card relative flex flex-col items-center justify-center",
-              "h-[7.5rem] rounded-xl transition-all duration-300 ease-out",
+              "h-[6.25rem] rounded-xl transition-[transform,box-shadow,filter,opacity] duration-300 ease-out min-[420px]:h-[7rem] sm:h-[7.5rem]",
               "cursor-pointer disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
               "hover:-translate-y-2 hover:scale-[1.04] active:scale-[0.98]",
               isSelected
@@ -88,16 +91,16 @@ export default function PointCardGrid({
           >
             {/* Corner value - top left */}
             <span className={cn(
-              "absolute top-2 left-2.5 flex flex-col items-center leading-none",
+              "absolute left-2 top-2 flex flex-col items-center leading-none min-[420px]:left-2.5",
               isSelected ? "text-amber-800" : "text-neutral-500",
             )}>
-              <span className="text-[0.6rem] font-bold font-sans">{value}</span>
-              <span className={cn("text-[0.55rem]", suitColor)}>{suit}</span>
+              <span className="text-[0.52rem] font-bold font-sans min-[420px]:text-[0.6rem]">{value}</span>
+              <span className={cn("text-[0.48rem] min-[420px]:text-[0.55rem]", suitColor)}>{suit}</span>
             </span>
 
             {/* Center value */}
             <span className={cn(
-              "font-serif text-3xl font-bold transition-colors",
+              "font-serif text-[1.7rem] font-bold transition-colors min-[420px]:text-[2rem] sm:text-3xl",
               isSelected ? "text-amber-900" : "text-neutral-700",
             )}>
               {value}
@@ -105,7 +108,7 @@ export default function PointCardGrid({
 
             {/* Center suit */}
             <span className={cn(
-              "text-sm mt-0.5 transition-opacity",
+              "mt-0.5 text-[0.8rem] transition-opacity min-[420px]:text-sm",
               suitColor,
               isSelected ? "opacity-95" : "opacity-40",
             )}>
@@ -114,11 +117,11 @@ export default function PointCardGrid({
 
             {/* Corner value - bottom right */}
             <span className={cn(
-              "absolute bottom-2 right-2.5 flex flex-col items-center leading-none rotate-180",
+              "absolute bottom-2 right-2 flex flex-col items-center leading-none rotate-180 min-[420px]:right-2.5",
               isSelected ? "text-amber-800" : "text-neutral-500",
             )}>
-              <span className="text-[0.6rem] font-bold font-sans">{value}</span>
-              <span className={cn("text-[0.55rem]", suitColor)}>{suit}</span>
+              <span className="text-[0.52rem] font-bold font-sans min-[420px]:text-[0.6rem]">{value}</span>
+              <span className={cn("text-[0.48rem] min-[420px]:text-[0.55rem]", suitColor)}>{suit}</span>
             </span>
 
             {/* Selection glow */}
