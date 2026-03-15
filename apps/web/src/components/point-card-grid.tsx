@@ -80,7 +80,7 @@ export default function PointCardGrid({
               "group/poker-card relative flex flex-col items-center justify-center",
               "h-[6.25rem] rounded-xl transition-[transform,box-shadow,filter,opacity] duration-300 ease-out min-[420px]:h-[7rem] sm:h-[7.5rem]",
               "cursor-pointer disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
-              "hover:-translate-y-2 hover:scale-[1.04] active:scale-[0.98]",
+              "hover:scale-[1.04] hover:brightness-[1.02] active:scale-[0.98]",
               isSelected
                 ? "card-face -translate-y-2 ring-2 ring-amber-500/65 brightness-[0.94] shadow-[0_14px_42px_rgba(218,185,100,0.33),0_6px_14px_rgba(0,0,0,0.24)]"
                 : "card-face hover:shadow-[0_14px_36px_rgba(0,0,0,0.4)]",

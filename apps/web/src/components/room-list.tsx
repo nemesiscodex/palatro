@@ -120,7 +120,7 @@ export default function RoomList({
                 <Link
                   to="/rooms/$slug"
                   params={{ slug: room.slug }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:-translate-y-px hover:border-primary/30 hover:bg-primary/[0.06] hover:text-primary"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:border-primary/30 hover:bg-primary/[0.06] hover:text-primary"
                 >
                   <span className="text-primary/50">{"\u2192"}</span>
                   Open

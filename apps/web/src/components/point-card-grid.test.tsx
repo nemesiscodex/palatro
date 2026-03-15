@@ -66,6 +66,12 @@ describe("PointCardGrid", () => {
     expect(mockPlayHoverSound).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the hover hit target stable by avoiding upward translation", () => {
+    render(<PointCardGrid deck={["1"]} selectedValue={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: /1/ }).className).not.toContain("hover:-translate-y-2");
+  });
+
   it("plays the deal sound close to the end of the staggered animation", () => {
     render(<PointCardGrid deck={["1", "2", "3"]} selectedValue={null} onSelect={vi.fn()} />);
 

@@ -13,15 +13,15 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-gradient-to-b from-primary to-[oklch(0.72_0.1_72)] text-primary-foreground shadow-[0_8px_24px_rgba(218,185,100,0.2),inset_0_1px_0_rgba(255,255,255,0.15)] hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(218,185,100,0.3),inset_0_1px_0_rgba(255,255,255,0.15)] active:translate-y-0 active:shadow-[0_4px_12px_rgba(218,185,100,0.15)]",
+          "bg-gradient-to-b from-primary to-[oklch(0.72_0.1_72)] text-primary-foreground shadow-[0_8px_24px_rgba(218,185,100,0.2),inset_0_1px_0_rgba(255,255,255,0.15)] hover:brightness-[1.03] hover:shadow-[0_12px_32px_rgba(218,185,100,0.3),inset_0_1px_0_rgba(255,255,255,0.15)] active:translate-y-0 active:shadow-[0_4px_12px_rgba(218,185,100,0.15)]",
         outline:
-          "border-white/[0.08] bg-white/[0.03] text-foreground hover:-translate-y-0.5 hover:border-white/[0.14] hover:bg-white/[0.06] dark:bg-input/20 dark:border-input/60 dark:hover:bg-input/40 aria-expanded:bg-muted aria-expanded:text-foreground",
+          "border-white/[0.08] bg-white/[0.03] text-foreground hover:border-white/[0.14] hover:bg-white/[0.06] dark:bg-input/20 dark:border-input/60 dark:hover:bg-input/40 aria-expanded:bg-muted aria-expanded:text-foreground",
         secondary:
-          "bg-secondary text-secondary-foreground hover:-translate-y-0.5 hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
           "border-transparent hover:bg-white/[0.05] hover:text-foreground dark:hover:bg-muted/40 aria-expanded:bg-muted aria-expanded:text-foreground",
         destructive:
-          "bg-destructive/12 border-destructive/15 hover:-translate-y-0.5 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/25",
+          "bg-destructive/12 border-destructive/15 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/25",
         link: "text-primary/80 tracking-[0.14em] underline-offset-4 hover:underline hover:text-primary",
       },
       size: {

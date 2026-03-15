@@ -60,7 +60,7 @@ export default function Header() {
                   <Link
                     key={to}
                     to={to}
-                    className="rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-muted-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:-translate-y-px hover:border-primary/25 hover:text-foreground hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)] sm:px-4 sm:tracking-[0.22em]"
+                    className="rounded-full border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-muted-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:border-primary/25 hover:text-foreground hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)] sm:px-4 sm:tracking-[0.22em]"
                   >
                     {label}
                   </Link>
@@ -72,7 +72,7 @@ export default function Header() {
               target="_blank"
               rel="noreferrer noopener"
               aria-label="View Palatro on GitHub"
-              className="rounded-full border border-white/[0.06] bg-white/[0.03] p-2.5 text-muted-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:-translate-y-px hover:border-primary/25 hover:text-foreground hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
+              className="rounded-full border border-white/[0.06] bg-white/[0.03] p-2.5 text-muted-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:border-primary/25 hover:text-foreground hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
             >
               <Github className="h-4 w-4" />
             </a>
@@ -81,7 +81,7 @@ export default function Header() {
               onClick={toggleMuted}
               aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
               aria-pressed={muted}
-              className="rounded-full border border-white/[0.06] bg-white/[0.03] p-2.5 text-muted-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:-translate-y-px hover:border-primary/25 hover:text-foreground hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
+              className="rounded-full border border-white/[0.06] bg-white/[0.03] p-2.5 text-muted-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:border-primary/25 hover:text-foreground hover:shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
             >
               {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>
@@ -99,7 +99,7 @@ export default function Header() {
                 to="/rooms/$slug"
                 params={{ slug: room.slug }}
                 title={room.name}
-                className="group/pill relative min-w-0 max-w-full truncate rounded-full border border-white/[0.06] bg-white/[0.025] px-3 py-1.5 text-[0.65rem] font-medium uppercase tracking-[0.16em] text-muted-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:-translate-y-px hover:border-primary/30 hover:text-foreground sm:max-w-56 sm:px-3.5 sm:tracking-[0.18em]"
+                className="group/pill relative min-w-0 max-w-full truncate rounded-full border border-white/[0.06] bg-white/[0.025] px-3 py-1.5 text-[0.65rem] font-medium uppercase tracking-[0.16em] text-muted-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 hover:border-primary/30 hover:text-foreground sm:max-w-56 sm:px-3.5 sm:tracking-[0.18em]"
               >
                 <span className="mr-1.5 text-primary/40 transition-colors group-hover/pill:text-primary/70">{"\u2666"}</span>
                 <span className="inline-block max-w-[9rem] truncate align-bottom sm:max-w-40">
