@@ -5,6 +5,7 @@ import { resetSharedMocks, toastError, toastSuccess } from "@/test/mocks";
 
 const clipboardWriteText = vi.fn();
 const qrCodeToString = vi.fn();
+const scrollIntoView = vi.fn();
 const expectedRoomUrl = "http://localhost/rooms/demo";
 
 const routeState = {
@@ -150,6 +151,10 @@ describe("RoomPage", () => {
         writeText: clipboardWriteText,
       },
     });
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
     qrCodeToString.mockReset();
     qrCodeToString.mockResolvedValue(
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#fff" /></svg>',
@@ -159,6 +164,7 @@ describe("RoomPage", () => {
     }
     routeState.posthogCapture.mockReset();
     routeState.playSound.mockReset();
+    scrollIntoView.mockReset();
     resetSharedMocks();
   });
 
@@ -570,6 +576,125 @@ describe("RoomPage", () => {
     });
   });
 
+  it("scrolls to the table when voting starts", async () => {
+    const idleRoomState = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      readyCheck: null,
+      deck: ["1", "2", "3"],
+      participants: [],
+      activeRound: null,
+      viewer: {
+        isOwner: false,
+        participantId: "guest-1",
+        participantKind: "guest",
+        canVote: true,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Alex",
+        isAuthenticated: false,
+      },
+    };
+    routeState.queryValue = idleRoomState;
+
+    const { rerender } = render(<RoomPage slug="demo-room" />);
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    routeState.queryValue = {
+      ...idleRoomState,
+      room: {
+        ...idleRoomState.room,
+        status: "voting",
+      },
+      activeRound: {
+        id: "round-1",
+        roundNumber: 1,
+        status: "voting",
+        startedAt: 10_000,
+        votingDeadlineAt: null,
+        resultType: null,
+        resultValue: null,
+      },
+    };
+
+    rerender(<RoomPage slug="demo-room" />);
+
+    await waitFor(() => {
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  });
+
+  it("scrolls to the table when a ready check starts", async () => {
+    const readyCheckStartedAt = Date.now();
+    const idleRoomState = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      readyCheck: null,
+      deck: ["1", "2", "3"],
+      participants: [],
+      activeRound: null,
+      viewer: {
+        isOwner: false,
+        participantId: "guest-1",
+        participantKind: "guest",
+        canVote: true,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Alex",
+        isAuthenticated: false,
+      },
+    };
+    routeState.queryValue = idleRoomState;
+
+    const { rerender } = render(<RoomPage slug="demo-room" />);
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    routeState.mutations.respondReadyCheck.mockResolvedValue(null);
+
+    routeState.queryValue = {
+      ...idleRoomState,
+      readyCheck: {
+        startedAt: readyCheckStartedAt,
+        expiresAt: readyCheckStartedAt + 15_000,
+        isActive: true,
+        result: null,
+        viewerStatus: "pending",
+        viewerCanRespond: true,
+      },
+    };
+
+    rerender(<RoomPage slug="demo-room" />);
+
+    await waitFor(() => {
+      expect(scrollIntoView).toHaveBeenCalledWith({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  });
+
   it("allows guests to leave and clears their stored token", async () => {
     window.localStorage.setItem("pointing-poker:guest-token:demo-room", "guest-123");
     routeState.queryValue = {
@@ -835,7 +960,8 @@ describe("RoomPage", () => {
 
     render(<RoomPage slug="demo-room" />);
 
-    expect(screen.getByText("Answer Yes or No before the timer runs out.")).toBeInTheDocument();
+    expect(screen.getByText("Ready check")).toBeInTheDocument();
+    expect(screen.queryByText("Answer Yes or No before the timer runs out.")).not.toBeInTheDocument();
     expect(screen.getByText("Awaiting ready check")).toBeInTheDocument();
     expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(routeState.playSound).toHaveBeenCalledTimes(1);
@@ -978,7 +1104,7 @@ describe("RoomPage", () => {
     expect(routeState.playSound).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a finished ready-check message when not everyone is ready", () => {
+  it("hides the finished ready-check table message for non-dealers", () => {
     routeState.queryValue = {
       room: {
         id: "room-1",
@@ -1020,6 +1146,64 @@ describe("RoomPage", () => {
         currentVote: null,
         displayName: "Alex",
         isAuthenticated: false,
+      },
+    };
+
+    render(<RoomPage slug="demo-room" />);
+
+    expect(screen.queryByText("Ready check")).not.toBeInTheDocument();
+    expect(screen.queryByText("Not all participants are ready.")).not.toBeInTheDocument();
+  });
+
+  it("shows the ready-check table message for the dealer", () => {
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      readyCheck: {
+        startedAt: 10_000,
+        expiresAt: 25_000,
+        isActive: false,
+        result: "not_all_ready",
+        viewerStatus: null,
+        viewerCanRespond: false,
+      },
+      deck: ["1", "2", "3"],
+      participants: [
+        {
+          id: "host-1",
+          displayName: "Dealer",
+          hasVoted: false,
+          revealedVote: null,
+          kind: "host",
+        },
+        {
+          id: "guest-1",
+          displayName: "Alex",
+          hasVoted: false,
+          revealedVote: null,
+          kind: "guest",
+          readyCheckStatus: "no",
+        },
+      ],
+      activeRound: null,
+      viewer: {
+        isOwner: true,
+        participantId: "host-1",
+        participantKind: "host",
+        canVote: false,
+        needsJoin: false,
+        currentVote: null,
+        displayName: "Dealer",
+        isAuthenticated: true,
       },
     };
 

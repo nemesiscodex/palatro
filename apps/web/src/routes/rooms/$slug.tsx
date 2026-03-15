@@ -177,6 +177,12 @@ export function RoomPage({ slug }: { slug: string }) {
   const posthog = usePostHog();
   const hostJoinRequested = useRef(false);
   const guestClaimRequested = useRef(false);
+  const tableCardAnchorRef = useRef<HTMLDivElement | null>(null);
+  const previousTableFocusState = useRef<{
+    activeReadyCheckId: string | null;
+    activeRoundId: string | null;
+    isVoting: boolean;
+  } | null>(null);
   const trackedDoneRounds = useRef(new Set<string>());
   const warnedTimerRounds = useRef(new Set<string>());
   const syncedTimeoutRounds = useRef(new Set<string>());
@@ -323,6 +329,46 @@ export function RoomPage({ slug }: { slug: string }) {
     readyCheckDeadlineAt === null
       ? null
       : Math.max(0, Math.ceil((readyCheckDeadlineAt - countdownNowMs) / 1000));
+
+  useEffect(() => {
+    const nextTableFocusState = {
+      activeReadyCheckId:
+        roomState?.readyCheck?.isActive && roomState.readyCheck.startedAt
+          ? String(roomState.readyCheck.startedAt)
+          : null,
+      activeRoundId: roomState?.activeRound ? String(roomState.activeRound.id) : null,
+      isVoting: roomState?.room.status === "voting",
+    };
+    const previousFocusState = previousTableFocusState.current;
+
+    previousTableFocusState.current = nextTableFocusState;
+
+    if (!previousFocusState) {
+      return;
+    }
+
+    const votingStarted =
+      nextTableFocusState.isVoting &&
+      (!previousFocusState.isVoting ||
+        nextTableFocusState.activeRoundId !== previousFocusState.activeRoundId);
+    const readyCheckStarted =
+      nextTableFocusState.activeReadyCheckId !== null &&
+      nextTableFocusState.activeReadyCheckId !== previousFocusState.activeReadyCheckId;
+
+    if (!votingStarted && !readyCheckStarted) {
+      return;
+    }
+
+    tableCardAnchorRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [
+    roomState?.activeRound?.id,
+    roomState?.readyCheck?.isActive,
+    roomState?.readyCheck?.startedAt,
+    roomState?.room.status,
+  ]);
 
   useEffect(() => {
     if (votingDeadlineAt === null && readyCheckDeadlineAt === null) {
@@ -498,6 +544,12 @@ export function RoomPage({ slug }: { slug: string }) {
   const hasVotingTimer = roomState.room.votingTimeLimitSeconds != null;
   const hasReadyCheck = roomState.readyCheck != null;
   const readyCheckCanRespond = roomState.readyCheck?.viewerCanRespond === true;
+  const showReadyCheckTitle = roomState.readyCheck?.isActive === true || roomState.viewer.isOwner;
+  const showReadyCheckMessage = roomState.viewer.isOwner;
+  const showReadyCheckTimer =
+    roomState.readyCheck?.isActive === true && remainingReadyCheckSeconds !== null;
+  const showReadyCheckPanel =
+    hasReadyCheck && (showReadyCheckTitle || showReadyCheckMessage || showReadyCheckTimer || readyCheckCanRespond);
   const roomUrl = typeof window === "undefined" ? `/rooms/${slug}` : window.location.href;
 
   async function runBusyTask(task: () => Promise<unknown>, errorMessage: string) {
@@ -708,246 +760,244 @@ export function RoomPage({ slug }: { slug: string }) {
           </div>
 
           {/* The Table — main interaction area */}
-          <Card
-            className={cn(
-              "stagger-rise transition-all duration-500",
-              isVoting && "table-ring",
-            )}
-            style={{ animationDelay: "100ms" }}
-          >
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span className="text-primary/40">{"\u2663"}</span>
-              The table
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className={cn(
-              "grid gap-5 rounded-2xl border p-5 transition-all duration-500",
-              isVoting
-                ? "border-primary/10 bg-gradient-to-br from-primary/[0.03] to-transparent"
-                : "border-white/[0.05] bg-black/[0.08]",
-            )}>
-              {isVoting && hasVotingTimer && remainingVotingSeconds !== null ? (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-black/[0.12] px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
-                      Round timer
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Unanswered votes become {"?"} when the clock hits zero.
-                    </p>
-                  </div>
-                  <span className={cn(
-                    "rounded-full border px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.12em]",
-                    remainingVotingSeconds <= 5
-                      ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-                      : "border-primary/20 bg-primary/10 text-primary",
-                  )}>
-                    {formatVotingCountdown(remainingVotingSeconds)}
-                  </span>
-                </div>
-              ) : null}
-
-              {hasReadyCheck ? (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-black/[0.12] px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
-                      Ready check
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {roomState.readyCheck?.isActive
-                        ? roomState.viewer.isOwner
-                          ? "Participants have 15 seconds to confirm they are ready."
-                          : readyCheckCanRespond
-                            ? "Answer Yes or No before the timer runs out."
-                            : roomState.readyCheck?.viewerStatus === "yes"
-                            ? "You answered Yes."
-                            : roomState.readyCheck?.viewerStatus === "no"
-                              ? "You answered No."
-                              : "Waiting for ready check responses."
-                        : roomState.readyCheck?.result === "all_ready"
-                          ? "All participants are ready."
-                          : roomState.readyCheck?.result === "not_all_ready"
-                            ? "Not all participants are ready."
-                            : "Ready check closed. Latest responses stay on the participant list."}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {roomState.readyCheck?.isActive && remainingReadyCheckSeconds !== null ? (
+          <div ref={tableCardAnchorRef}>
+            <Card
+              className={cn(
+                "stagger-rise transition-all duration-500",
+                isVoting && "table-ring",
+              )}
+              style={{ animationDelay: "100ms" }}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="text-primary/40">{"\u2663"}</span>
+                  The table
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className={cn(
+                  "grid gap-5 rounded-2xl border p-5 transition-all duration-500",
+                  isVoting
+                    ? "border-primary/10 bg-gradient-to-br from-primary/[0.03] to-transparent"
+                    : "border-white/[0.05] bg-black/[0.08]",
+                )}>
+                  {isVoting && hasVotingTimer && remainingVotingSeconds !== null ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-black/[0.12] px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+                          Round timer
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Unanswered votes become {"?"} when the clock hits zero.
+                        </p>
+                      </div>
                       <span className={cn(
                         "rounded-full border px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.12em]",
-                        remainingReadyCheckSeconds <= 5
+                        remainingVotingSeconds <= 5
                           ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
-                          : "border-white/[0.08] bg-white/[0.04] text-muted-foreground",
+                          : "border-primary/20 bg-primary/10 text-primary",
                       )}>
-                        {remainingReadyCheckSeconds}s left
+                        {formatVotingCountdown(remainingVotingSeconds)}
                       </span>
-                    ) : null}
-                    {readyCheckCanRespond ? (
-                      <>
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={isBusy}
-                          onClick={() => {
-                            playReadyCheckYesSound();
-                            void runBusyTask(async () => {
-                              await respondReadyCheck({
-                                roomId: roomState.room.id,
-                                participantId: roomState.viewer.participantId,
-                                answer: "yes",
-                                guestToken: guestToken ?? undefined,
-                                ...(guestOwnerToken ? { guestOwnerToken } : {}),
-                              });
-                            }, "Could not respond to the ready check");
-                          }}
-                        >
-                          <Check className="size-4" />
-                          Yes
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={isBusy}
-                          onClick={() => {
-                            playReadyCheckNoSound();
-                            void runBusyTask(async () => {
-                              await respondReadyCheck({
-                                roomId: roomState.room.id,
-                                participantId: roomState.viewer.participantId,
-                                answer: "no",
-                                guestToken: guestToken ?? undefined,
-                                ...(guestOwnerToken ? { guestOwnerToken } : {}),
-                              });
-                            }, "Could not respond to the ready check");
-                          }}
-                        >
-                          <X className="size-4" />
-                          No
-                        </Button>
-                      </>
-                    ) : null}
-                  </div>
+                    </div>
+                  ) : null}
+
+                  {showReadyCheckPanel ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-black/[0.12] px-4 py-3">
+                      {showReadyCheckTitle ? (
+                        <div className="min-w-0">
+                          <p className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+                            Ready check
+                          </p>
+                          {showReadyCheckMessage ? (
+                            <p className="text-sm text-muted-foreground">
+                              {roomState.readyCheck?.isActive
+                                ? "Participants have 15 seconds to confirm they are ready."
+                                : roomState.readyCheck?.result === "all_ready"
+                                  ? "All participants are ready."
+                                  : roomState.readyCheck?.result === "not_all_ready"
+                                    ? "Not all participants are ready."
+                                    : "Ready check closed. Latest responses stay on the participant list."}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {showReadyCheckTimer ? (
+                          <span className={cn(
+                            "rounded-full border px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.12em]",
+                            remainingReadyCheckSeconds <= 5
+                              ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                              : "border-white/[0.08] bg-white/[0.04] text-muted-foreground",
+                          )}>
+                            {remainingReadyCheckSeconds}s left
+                          </span>
+                        ) : null}
+                        {readyCheckCanRespond ? (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={isBusy}
+                              onClick={() => {
+                                playReadyCheckYesSound();
+                                void runBusyTask(async () => {
+                                  await respondReadyCheck({
+                                    roomId: roomState.room.id,
+                                    participantId: roomState.viewer.participantId,
+                                    answer: "yes",
+                                    guestToken: guestToken ?? undefined,
+                                    ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                                  });
+                                }, "Could not respond to the ready check");
+                              }}
+                            >
+                              <Check className="size-4" />
+                              Yes
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={isBusy}
+                              onClick={() => {
+                                playReadyCheckNoSound();
+                                void runBusyTask(async () => {
+                                  await respondReadyCheck({
+                                    roomId: roomState.room.id,
+                                    participantId: roomState.viewer.participantId,
+                                    answer: "no",
+                                    guestToken: guestToken ?? undefined,
+                                    ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                                  });
+                                }, "Could not respond to the ready check");
+                              }}
+                            >
+                              <X className="size-4" />
+                              No
+                            </Button>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Leave button for guest sessions */}
+                  {guestToken && !roomState.viewer.isOwner ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="justify-center sm:justify-start"
+                      onClick={() => {
+                        if (!roomState.viewer.participantId) {
+                          clearGuestToken(slug);
+                          setGuestToken(null);
+                          return;
+                        }
+
+                        void runBusyTask(
+                          async () => {
+                            await leave({
+                              roomId: roomState.room.id,
+                              participantId: roomState.viewer.participantId,
+                              guestToken,
+                              ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                            });
+                            clearGuestToken(slug);
+                            setGuestToken(null);
+                          },
+                          "Could not leave the room",
+                        );
+                      }}
+                    >
+                      {isViewOnlyParticipant ? "Leave room" : "Leave table"}
+                    </Button>
+                  ) : null}
+
+                  {/* Main content area */}
+                  {showJoinForm ? (
+                    <JoinRoomForm
+                      defaultValue={roomState.viewer.displayName}
+                      hasPassword={roomState.room.hasPassword}
+                      onJoin={async ({ nickname, password, joinMode }) => {
+                        await runBusyTask(async () => {
+                          const join = joinMode === "viewer" ? joinAsViewer : joinAsGuest;
+                          const result = await join({
+                            slug,
+                            nickname,
+                            guestToken: guestToken ?? undefined,
+                            password,
+                          });
+                          writeGuestToken(slug, result.guestToken);
+                          setGuestToken(result.guestToken);
+                          toast.success(joinMode === "viewer" ? "Joined as viewer" : "Joined room");
+                        }, "Could not join room");
+                      }}
+                    />
+                  ) : roomState.room.status === "voting" && roomState.viewer.canVote && roomState.activeRound ? (
+                    <PointCardGrid
+                      deck={roomState.deck}
+                      selectedValue={roomState.viewer.currentVote}
+                      disabled={isBusy}
+                      onSelect={async (value) => {
+                        await runBusyTask(async () => {
+                          await castVote({
+                            roomId: roomState.room.id,
+                            roundId: roomState.activeRound.id,
+                            participantId: roomState.viewer.participantId,
+                            value,
+                            guestToken: guestToken ?? undefined,
+                            ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                          });
+                          posthog.capture("vote_cast", {
+                            room_id: String(roomState.room.id),
+                            room_slug: roomState.room.slug,
+                            round_id: String(roomState.activeRound.id),
+                            round_number: roomState.activeRound.roundNumber,
+                            scale_type: roomState.room.scaleType,
+                            vote_value: value,
+                            had_previous_vote: !!roomState.viewer.currentVote,
+                            is_owner: roomState.viewer.isOwner,
+                          });
+                        }, "Could not submit vote");
+                      }}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-3 py-6 text-center">
+                      <span className="text-2xl text-primary/15">
+                        {roomState.room.status === "idle" ? "\u2660" : "\u2665"}
+                      </span>
+                      <p className="text-muted-foreground text-sm leading-6">
+                        {roomState.room.status === "idle"
+                          ? "Waiting for the dealer to start the round."
+                          : roomState.room.status === "revealed"
+                            ? "Results stay on the felt until the next round."
+                            : isHostOnlyViewer
+                              ? "Hosting this round. Waiting for players to vote."
+                              : isViewOnlyParticipant
+                                ? "Watching this round. View-only participants don't vote."
+                                : "Waiting for your participant session."}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Round results */}
+                  {roomState.room.status === "revealed" ? (
+                    <RoundResults 
+                      activeRound={roomState.activeRound}
+                      roomId={String(roomState.room.id)}
+                      roomSlug={roomState.room.slug}
+                      scaleType={roomState.room.scaleType}
+                      consensusMode={roomState.room.consensusMode}
+                      consensusThreshold={roomState.room.consensusThreshold}
+                      votesCount={eligibleParticipantCount}
+                    />
+                  ) : null}
                 </div>
-              ) : null}
-
-              {/* Leave button for guest sessions */}
-              {guestToken && !roomState.viewer.isOwner ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="justify-center sm:justify-start"
-                  onClick={() => {
-                    if (!roomState.viewer.participantId) {
-                      clearGuestToken(slug);
-                      setGuestToken(null);
-                      return;
-                    }
-
-                    void runBusyTask(
-                      async () => {
-                        await leave({
-                          roomId: roomState.room.id,
-                          participantId: roomState.viewer.participantId,
-                          guestToken,
-                          ...(guestOwnerToken ? { guestOwnerToken } : {}),
-                        });
-                        clearGuestToken(slug);
-                        setGuestToken(null);
-                      },
-                      "Could not leave the room",
-                    );
-                  }}
-                >
-                  {isViewOnlyParticipant ? "Leave room" : "Leave table"}
-                </Button>
-              ) : null}
-
-              {/* Main content area */}
-              {showJoinForm ? (
-                <JoinRoomForm
-                  defaultValue={roomState.viewer.displayName}
-                  hasPassword={roomState.room.hasPassword}
-                  onJoin={async ({ nickname, password, joinMode }) => {
-                    await runBusyTask(async () => {
-                      const join = joinMode === "viewer" ? joinAsViewer : joinAsGuest;
-                      const result = await join({
-                        slug,
-                        nickname,
-                        guestToken: guestToken ?? undefined,
-                        password,
-                      });
-                      writeGuestToken(slug, result.guestToken);
-                      setGuestToken(result.guestToken);
-                      toast.success(joinMode === "viewer" ? "Joined as viewer" : "Joined room");
-                    }, "Could not join room");
-                  }}
-                />
-              ) : roomState.room.status === "voting" && roomState.viewer.canVote && roomState.activeRound ? (
-                <PointCardGrid
-                  deck={roomState.deck}
-                  selectedValue={roomState.viewer.currentVote}
-                  disabled={isBusy}
-                  onSelect={async (value) => {
-                    await runBusyTask(async () => {
-                      await castVote({
-                        roomId: roomState.room.id,
-                        roundId: roomState.activeRound.id,
-                        participantId: roomState.viewer.participantId,
-                        value,
-                        guestToken: guestToken ?? undefined,
-                        ...(guestOwnerToken ? { guestOwnerToken } : {}),
-                      });
-                      posthog.capture("vote_cast", {
-                        room_id: String(roomState.room.id),
-                        room_slug: roomState.room.slug,
-                        round_id: String(roomState.activeRound.id),
-                        round_number: roomState.activeRound.roundNumber,
-                        scale_type: roomState.room.scaleType,
-                        vote_value: value,
-                        had_previous_vote: !!roomState.viewer.currentVote,
-                        is_owner: roomState.viewer.isOwner,
-                      });
-                    }, "Could not submit vote");
-                  }}
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-3 py-6 text-center">
-                  <span className="text-2xl text-primary/15">
-                    {roomState.room.status === "idle" ? "\u2660" : "\u2665"}
-                  </span>
-                  <p className="text-muted-foreground text-sm leading-6">
-                    {roomState.room.status === "idle"
-                      ? "Waiting for the dealer to start the round."
-                      : roomState.room.status === "revealed"
-                        ? "Results stay on the felt until the next round."
-                        : isHostOnlyViewer
-                          ? "Hosting this round. Waiting for players to vote."
-                          : isViewOnlyParticipant
-                            ? "Watching this round. View-only participants don't vote."
-                          : "Waiting for your participant session."}
-                  </p>
-                </div>
-              )}
-
-              {/* Round results */}
-              {roomState.room.status === "revealed" ? (
-                <RoundResults 
-                  activeRound={roomState.activeRound}
-                  roomId={String(roomState.room.id)}
-                  roomSlug={roomState.room.slug}
-                  scaleType={roomState.room.scaleType}
-                  consensusMode={roomState.room.consensusMode}
-                  consensusThreshold={roomState.room.consensusThreshold}
-                  votesCount={eligibleParticipantCount}
-                />
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
 
         {/* Participants card */}
         <Card className="stagger-rise" style={{ animationDelay: "180ms" }}>
