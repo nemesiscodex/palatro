@@ -131,6 +131,13 @@ export function getRoomActivityPatch(
       };
 }
 
+export function isParticipantPresent(
+  participant: Pick<Doc<"participants">, "isActive" | "kind" | "lastSeenAt">,
+  now = Date.now(),
+) {
+  return participant.isActive && (participant.kind === "host" || isParticipantFresh(participant.lastSeenAt, now));
+}
+
 export async function touchRoomActivity(ctx: Ctx, roomId: Id<"rooms">, now = Date.now()) {
   const room = (await ctx.db.get(roomId)) as Doc<"rooms"> | null;
 
@@ -196,7 +203,7 @@ export async function getFreshParticipants(ctx: Ctx, roomId: Id<"rooms">, now = 
 
   return participants.filter(
     (participant: Doc<"participants">) =>
-      participant.isActive && isParticipantFresh(participant.lastSeenAt, now),
+      isParticipantPresent(participant, now),
   );
 }
 
@@ -228,6 +235,21 @@ export function filterVotesForRoom<
 export async function getFreshVotingParticipants(ctx: Ctx, room: Doc<"rooms">, now = Date.now()) {
   const participants = await getFreshParticipants(ctx, room._id, now);
   return participants.filter((participant: Doc<"participants">) => canParticipantVoteInRoom(participant, room));
+}
+
+async function getReadyCheckParticipants(
+  ctx: Ctx,
+  roomId: Id<"rooms">,
+  readyCheckStartedAt: number,
+  now = Date.now(),
+) {
+  const participants = await getFreshParticipants(ctx, roomId, now);
+
+  return participants.filter(
+    (participant: Doc<"participants">) =>
+      participant.kind !== "host" &&
+      participant.readyCheckStartedAt === readyCheckStartedAt,
+  );
 }
 
 export function sortParticipantsForDisplay(participants: Doc<"participants">[]) {
@@ -326,11 +348,7 @@ export async function ensureUniqueDisplayName(
     .collect();
 
   const duplicate = participants.find((participant: Doc<"participants">) => {
-    if (
-      !participant.isActive ||
-      !isParticipantFresh(participant.lastSeenAt, now) ||
-      participant._id === excludeParticipantId
-    ) {
+    if (!isParticipantPresent(participant, now) || participant._id === excludeParticipantId) {
       return false;
     }
     return normalizeDisplayName(participant.displayName).toLowerCase() === normalized;
@@ -453,6 +471,7 @@ export async function finalizeExpiredReadyCheckIfNeeded(
   for (const participant of participants as Doc<"participants">[]) {
     if (
       participant.kind === "host" ||
+      !isParticipantPresent(participant, now) ||
       participant.readyCheckStartedAt !== room.readyCheckStartedAt ||
       participant.readyCheckStatus !== "pending"
     ) {
@@ -482,11 +501,10 @@ export async function finalizeReadyCheckIfComplete(
     return false;
   }
 
-  const participants = await getFreshParticipants(ctx, room._id, now);
-  const readyCheckParticipants = participants.filter(
-    (participant: Doc<"participants">) =>
-      participant.kind !== "host" &&
-      participant.readyCheckStartedAt === room.readyCheckStartedAt,
+  const readyCheckParticipants = await getReadyCheckParticipants(
+    ctx,
+    room._id,
+    room.readyCheckStartedAt,
   );
 
   if (
@@ -547,7 +565,12 @@ export async function buildRoomState(
     ? await findGuestParticipantByToken(ctx, room._id, guestToken)
     : null;
   const knownParticipant = registeredHostParticipant ?? guestOwnerHostParticipant ?? guestParticipant;
-  const viewerParticipant = knownParticipant?.isActive ? knownParticipant : null;
+  const viewerParticipant =
+    knownParticipant && isParticipantPresent(knownParticipant, now) ? knownParticipant : null;
+  const staleKnownParticipant =
+    knownParticipant?.isActive && !isParticipantPresent(knownParticipant, now)
+      ? knownParticipant
+      : null;
   const guestOwnerSession = getOptionalGuestOwnerSession(ctx, guestOwnerToken);
   const ownerKind = resolveRoomOwnerKind(room);
   const isRegisteredOwner = ownerKind === "registered" && !!userId && room.ownerUserId === userId;
@@ -570,10 +593,7 @@ export async function buildRoomState(
   const readyCheckParticipants =
     readyCheckStartedAt === null
       ? []
-      : participants.filter(
-          (participant: Doc<"participants">) =>
-            participant.kind !== "host" && participant.readyCheckStartedAt === readyCheckStartedAt,
-        );
+      : await getReadyCheckParticipants(ctx, room._id, readyCheckStartedAt, now);
   const readyCheckPendingCount = readyCheckParticipants.filter(
     (participant: Doc<"participants">) => (participant.readyCheckStatus ?? "pending") === "pending",
   ).length;
@@ -636,6 +656,11 @@ export async function buildRoomState(
               viewerParticipant.kind !== "host" &&
               viewerParticipant.readyCheckStartedAt === readyCheckStartedAt &&
               (viewerParticipant.readyCheckStatus ?? "pending") === "pending",
+            viewerCanRejoin:
+              readyCheckIsActive &&
+              !!staleKnownParticipant &&
+              staleKnownParticipant.kind !== "host",
+            viewerRejoinParticipantId: staleKnownParticipant?._id ?? null,
           }
         : null,
     eligibleParticipantCount: participants.filter((participant: Doc<"participants">) =>

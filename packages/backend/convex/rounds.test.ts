@@ -15,7 +15,9 @@ import {
   syncTimeout,
 } from "./rounds";
 
-const authState = {
+const authState: {
+  user: { _id: string } | undefined;
+} = {
   user: { _id: "user-1" },
 };
 
@@ -225,6 +227,129 @@ describe("rounds.castVote", () => {
       status: "revealed",
       activeRoundId: "round-1",
     });
+  });
+
+  it("keeps a stale dealer in the voting quorum when host voting is enabled", async () => {
+    const now = 212_000;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+
+    const ctx = createCtx({
+      rooms: [
+        {
+          _id: "room-1",
+          ownerUserId: "user-1",
+          scaleType: "fibonacci",
+          consensusMode: "plurality",
+          consensusThreshold: 70,
+          hostVotingEnabled: true,
+          status: "voting",
+          activeRoundId: "round-1",
+        },
+      ],
+      rounds: [
+        {
+          _id: "round-1",
+          roomId: "room-1",
+          status: "voting",
+          roundNumber: 1,
+          endedReason: null,
+          resultType: null,
+          resultValue: null,
+        },
+      ],
+      participants: [
+        {
+          _id: "host-1",
+          roomId: "room-1",
+          kind: "host",
+          hostUserId: "user-1",
+          displayName: "Dealer",
+          isActive: true,
+          lastSeenAt: 90_000,
+        },
+        {
+          _id: "guest-1",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token",
+          displayName: "Alex",
+          isActive: true,
+          lastSeenAt: now,
+        },
+      ],
+    });
+
+    await (castVote as any)._handler(ctx, {
+      roomId: "room-1",
+      roundId: "round-1",
+      participantId: "guest-1",
+      value: "5",
+      guestToken: "guest-token",
+    });
+
+    expect(ctx.db.tables.votes).toHaveLength(1);
+    expect(ctx.db.tables.rounds[0]).toMatchObject({
+      _id: "round-1",
+      status: "voting",
+      endedReason: null,
+      resultType: null,
+      resultValue: null,
+    });
+    expect(ctx.db.tables.rooms[0]).toMatchObject({
+      _id: "room-1",
+      status: "voting",
+    });
+  });
+
+  it("rejects votes from expired guests until they rejoin", async () => {
+    const now = 212_000;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+
+    const ctx = createCtx({
+      rooms: [
+        {
+          _id: "room-1",
+          ownerUserId: "user-1",
+          scaleType: "fibonacci",
+          consensusMode: "plurality",
+          consensusThreshold: 70,
+          hostVotingEnabled: true,
+          status: "voting",
+          activeRoundId: "round-1",
+        },
+      ],
+      rounds: [
+        {
+          _id: "round-1",
+          roomId: "room-1",
+          status: "voting",
+          roundNumber: 1,
+        },
+      ],
+      participants: [
+        {
+          _id: "guest-1",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token",
+          displayName: "Alex",
+          isActive: true,
+          lastSeenAt: 90_000,
+        },
+      ],
+    });
+
+    await expect(
+      (castVote as any)._handler(ctx, {
+        roomId: "room-1",
+        roundId: "round-1",
+        participantId: "guest-1",
+        value: "8",
+        guestToken: "guest-token",
+      }),
+    ).rejects.toThrow("Participant is no longer active in the room");
+
+    expect(ctx.db.tables.votes).toHaveLength(0);
   });
 
   it("rejects votes from view-only participants", async () => {
@@ -477,6 +602,15 @@ describe("rounds.readyCheck", () => {
           isActive: true,
           lastSeenAt: 10_000,
         },
+        {
+          _id: "guest-2",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "stale-guest-token",
+          displayName: "Sam",
+          isActive: true,
+          lastSeenAt: -200_000,
+        },
       ],
     });
 
@@ -504,6 +638,10 @@ describe("rounds.readyCheck", () => {
       readyCheckStatus: "pending",
       readyCheckStartedAt: 10_000,
     });
+    expect(ctx.db.tables.participants[3]).toMatchObject({
+      _id: "guest-2",
+    });
+    expect(ctx.db.tables.participants[3]).not.toHaveProperty("readyCheckStatus");
   });
 
   it("records participant responses and auto-fails unanswered participants at timeout", async () => {
@@ -631,6 +769,77 @@ describe("rounds.readyCheck", () => {
     });
   });
 
+  it("lets expired guests rejoin an active ready check with yes", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(212_000);
+
+    const ctx = createCtx({
+      rooms: [
+        {
+          _id: "room-1",
+          ownerUserId: "user-1",
+          status: "idle",
+          readyCheckStartedAt: 210_000,
+          readyCheckExpiresAt: 225_000,
+          readyCheckIsActive: true,
+          updatedAt: 0,
+        },
+      ],
+      participants: [
+        {
+          _id: "guest-1",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token-1",
+          displayName: "Alex",
+          isActive: true,
+          lastSeenAt: 212_000,
+          readyCheckStatus: "pending",
+          readyCheckStartedAt: 210_000,
+        },
+        {
+          _id: "guest-2",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token-2",
+          displayName: "Sam",
+          isActive: true,
+          lastSeenAt: 90_000,
+        },
+        {
+          _id: "guest-3",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token-3",
+          displayName: "Pat",
+          isActive: true,
+          lastSeenAt: 212_000,
+          readyCheckStatus: "pending",
+          readyCheckStartedAt: 210_000,
+        },
+      ],
+    });
+
+    await (respondReadyCheck as any)._handler(ctx, {
+      roomId: "room-1",
+      participantId: "guest-2",
+      answer: "yes",
+      guestToken: "guest-token-2",
+    });
+
+    expect(ctx.db.tables.rooms[0]).toMatchObject({
+      _id: "room-1",
+      readyCheckIsActive: true,
+    });
+    expect(ctx.db.tables.participants[1]).toMatchObject({
+      _id: "guest-2",
+      readyCheckStatus: "yes",
+      readyCheckStartedAt: 210_000,
+      readyCheckRespondedAt: 212_000,
+      lastSeenAt: 212_000,
+      isActive: true,
+    });
+  });
+
   it("ends immediately when the owner is alone in the room", async () => {
     vi.spyOn(Date, "now").mockReturnValue(10_000);
 
@@ -730,6 +939,127 @@ describe("rounds.readyCheck", () => {
     expect(roomState?.readyCheck).toMatchObject({
       isActive: false,
       result: "not_all_ready",
+    });
+  });
+
+  it("exposes a rejoin prompt for an expired guest during an active ready check", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(212_000);
+    authState.user = undefined;
+
+    const ctx = createCtx({
+      rooms: [
+        {
+          _id: "room-1",
+          ownerUserId: "user-1",
+          slug: "demo-room",
+          name: "Sprint Poker",
+          scaleType: "fibonacci",
+          consensusMode: "plurality",
+          consensusThreshold: 70,
+          hostVotingEnabled: true,
+          status: "idle",
+          readyCheckStartedAt: 210_000,
+          readyCheckExpiresAt: 225_000,
+          readyCheckIsActive: true,
+        },
+      ],
+      participants: [
+        {
+          _id: "host-1",
+          roomId: "room-1",
+          kind: "host",
+          hostUserId: "user-1",
+          displayName: "Dealer",
+          isActive: true,
+          lastSeenAt: 212_000,
+        },
+        {
+          _id: "guest-1",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token-1",
+          displayName: "Alex",
+          isActive: true,
+          lastSeenAt: 90_000,
+        },
+      ],
+    });
+
+    const roomState = await buildRoomState(ctx as any, "demo-room", "guest-token-1");
+
+    expect(roomState?.readyCheck).toMatchObject({
+      isActive: true,
+      viewerCanRespond: false,
+      viewerCanRejoin: true,
+      viewerRejoinParticipantId: "guest-1",
+    });
+    expect(roomState?.viewer).toMatchObject({
+      participantId: null,
+      needsJoin: true,
+    });
+  });
+
+  it("ignores expired guests when computing the finished ready check result", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(220_000);
+
+    const ctx = createCtx({
+      rooms: [
+        {
+          _id: "room-1",
+          ownerUserId: "user-1",
+          slug: "demo-room",
+          name: "Sprint Poker",
+          scaleType: "fibonacci",
+          consensusMode: "plurality",
+          consensusThreshold: 70,
+          hostVotingEnabled: true,
+          status: "idle",
+          readyCheckStartedAt: 210_000,
+          readyCheckExpiresAt: 225_000,
+          readyCheckIsActive: false,
+        },
+      ],
+      participants: [
+        {
+          _id: "host-1",
+          roomId: "room-1",
+          kind: "host",
+          hostUserId: "user-1",
+          displayName: "Dealer",
+          isActive: true,
+          lastSeenAt: 220_000,
+        },
+        {
+          _id: "guest-1",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token-1",
+          displayName: "Alex",
+          isActive: true,
+          lastSeenAt: 220_000,
+          readyCheckStatus: "yes",
+          readyCheckStartedAt: 210_000,
+          readyCheckRespondedAt: 212_000,
+        },
+        {
+          _id: "guest-2",
+          roomId: "room-1",
+          kind: "guest",
+          guestTokenHash: "guest-token-2",
+          displayName: "Sam",
+          isActive: true,
+          lastSeenAt: 90_000,
+          readyCheckStatus: "pending",
+          readyCheckStartedAt: 210_000,
+        },
+      ],
+    });
+
+    const roomState = await buildRoomState(ctx as any, "demo-room");
+
+    expect(roomState?.readyCheck).toMatchObject({
+      isActive: false,
+      result: "all_ready",
     });
   });
 });

@@ -16,8 +16,10 @@ import {
   findHostParticipantByGuestOwnerToken,
   findHostParticipantByUserId,
   finishRound,
+  getFreshParticipants,
   getFreshVotingParticipants,
   getRoomActivityPatch,
+  isParticipantPresent,
   READY_CHECK_DURATION_MS,
   requireAuthSession,
 } from "./pokerHelpers";
@@ -81,11 +83,18 @@ async function resolveVotingParticipant(
   participantId: Id<"participants">,
   guestToken?: string,
   guestOwnerToken?: string,
+  options?: {
+    requirePresent?: boolean;
+  },
 ) {
   const participant = (await ctx.db.get(participantId)) as Doc<"participants"> | null;
 
   if (!participant || participant.roomId !== room._id || !participant.isActive) {
     throw new ConvexError("Participant not found");
+  }
+
+  if (options?.requirePresent === true && !isParticipantPresent(participant)) {
+    throw new ConvexError("Participant is no longer active in the room");
   }
 
   if (isGuestSessionParticipant(participant.kind)) {
@@ -158,13 +167,10 @@ export const startReadyCheck = mutation({
     }
 
     const readyCheckExpiresAt = now + READY_CHECK_DURATION_MS;
-    const participants = await ctx.db
-      .query("participants")
-      .withIndex("by_roomId", (q: any) => q.eq("roomId", freshRoom._id))
-      .collect();
+    const participants = await getFreshParticipants(ctx, freshRoom._id, now);
 
     for (const participant of participants as Doc<"participants">[]) {
-      if (!participant.isActive || participant.kind === "host") {
+      if (participant.kind === "host") {
         continue;
       }
 
@@ -232,19 +238,25 @@ export const respondReadyCheck = mutation({
       args.participantId,
       args.guestToken,
       args.guestOwnerToken,
+      { requirePresent: false },
     );
 
     if (participant.kind === "host") {
       throw new ConvexError("Dealer is always ready");
     }
 
-    if (participant.readyCheckStartedAt !== freshRoom.readyCheckStartedAt) {
+    const now = Date.now();
+    const canRejoinFromReadyCheck =
+      args.answer === "yes" &&
+      !isParticipantPresent(participant, now);
+
+    if (participant.readyCheckStartedAt !== freshRoom.readyCheckStartedAt && !canRejoinFromReadyCheck) {
       throw new ConvexError("This participant is not part of the active ready check");
     }
 
-    const now = Date.now();
     await ctx.db.patch(participant._id, {
       readyCheckStatus: args.answer,
+      readyCheckStartedAt: freshRoom.readyCheckStartedAt,
       readyCheckRespondedAt: now,
       lastSeenAt: now,
       isActive: true,
@@ -292,6 +304,7 @@ export const castVote = mutation({
       args.participantId,
       args.guestToken,
       args.guestOwnerToken,
+      { requirePresent: true },
     );
 
     if (!canParticipantVoteInRoom(participant, room)) {

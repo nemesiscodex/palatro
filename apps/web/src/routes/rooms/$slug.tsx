@@ -538,18 +538,20 @@ export function RoomPage({ slug }: { slug: string }) {
   }
 
   const canManage = roomState.viewer.isOwner;
-  const showJoinForm = roomState.viewer.needsJoin && !roomState.viewer.isOwner;
+  const readyCheckCanRejoin = roomState.readyCheck?.viewerCanRejoin === true;
+  const showJoinForm = roomState.viewer.needsJoin && !roomState.viewer.isOwner && !readyCheckCanRejoin;
   const isVoting = roomState.room.status === "voting";
   const isRevealed = roomState.room.status === "revealed";
   const hasVotingTimer = roomState.room.votingTimeLimitSeconds != null;
   const hasReadyCheck = roomState.readyCheck != null;
   const readyCheckCanRespond = roomState.readyCheck?.viewerCanRespond === true;
   const showReadyCheckTitle = roomState.readyCheck?.isActive === true || roomState.viewer.isOwner;
-  const showReadyCheckMessage = roomState.viewer.isOwner;
+  const showReadyCheckMessage = roomState.viewer.isOwner || readyCheckCanRejoin;
   const showReadyCheckTimer =
     roomState.readyCheck?.isActive === true && remainingReadyCheckSeconds !== null;
   const showReadyCheckPanel =
-    hasReadyCheck && (showReadyCheckTitle || showReadyCheckMessage || showReadyCheckTimer || readyCheckCanRespond);
+    hasReadyCheck &&
+    (showReadyCheckTitle || showReadyCheckMessage || showReadyCheckTimer || readyCheckCanRespond || readyCheckCanRejoin);
   const roomUrl = typeof window === "undefined" ? `/rooms/${slug}` : window.location.href;
 
   async function runBusyTask(task: () => Promise<unknown>, errorMessage: string) {
@@ -811,13 +813,15 @@ export function RoomPage({ slug }: { slug: string }) {
                           </p>
                           {showReadyCheckMessage ? (
                             <p className="text-sm text-muted-foreground">
-                              {roomState.readyCheck?.isActive
-                                ? "Participants have 15 seconds to confirm they are ready."
-                                : roomState.readyCheck?.result === "all_ready"
-                                  ? "All participants are ready."
-                                  : roomState.readyCheck?.result === "not_all_ready"
-                                    ? "Not all participants are ready."
-                                    : "Ready check closed. Latest responses stay on the participant list."}
+                              {readyCheckCanRejoin
+                                ? "You were removed for inactivity. Press Yes to rejoin this ready check."
+                                : roomState.readyCheck?.isActive
+                                  ? "Participants have 15 seconds to confirm they are ready."
+                                  : roomState.readyCheck?.result === "all_ready"
+                                    ? "All participants are ready."
+                                    : roomState.readyCheck?.result === "not_all_ready"
+                                      ? "Not all participants are ready."
+                                      : "Ready check closed. Latest responses stay on the participant list."}
                             </p>
                           ) : null}
                         </div>
@@ -832,6 +836,32 @@ export function RoomPage({ slug }: { slug: string }) {
                           )}>
                             {remainingReadyCheckSeconds}s left
                           </span>
+                        ) : null}
+                        {readyCheckCanRejoin ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={isBusy || !roomState.readyCheck?.viewerRejoinParticipantId}
+                            onClick={() => {
+                              playReadyCheckYesSound();
+                              void runBusyTask(async () => {
+                                if (!roomState.readyCheck?.viewerRejoinParticipantId) {
+                                  throw new Error("Missing ready-check participant");
+                                }
+
+                                await respondReadyCheck({
+                                  roomId: roomState.room.id,
+                                  participantId: roomState.readyCheck.viewerRejoinParticipantId,
+                                  answer: "yes",
+                                  guestToken: guestToken ?? undefined,
+                                  ...(guestOwnerToken ? { guestOwnerToken } : {}),
+                                });
+                              }, "Could not rejoin the ready check");
+                            }}
+                          >
+                            <Check className="size-4" />
+                            Yes, rejoin
+                          </Button>
                         ) : null}
                         {readyCheckCanRespond ? (
                           <>

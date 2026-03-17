@@ -671,6 +671,69 @@ describe("guest-owned rooms", () => {
     ).rejects.toThrow("Not authenticated");
   });
 
+  it("keeps a stale dealer joined to the room state", async () => {
+    const now = 212_000;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    authState.user = { _id: "user-7", name: "Dealer" } as unknown as AuthUser;
+    const ctx = createCtx({
+      rooms: [
+        {
+          _id: "room-1",
+          ownerKind: "registered",
+          ownerUserId: "user-7",
+          slug: "demo-room",
+          name: "Demo",
+          scaleType: "fibonacci",
+          consensusMode: "plurality",
+          consensusThreshold: 70,
+          hostVotingEnabled: true,
+          status: "idle",
+          createdAt: now - 1_000,
+          lastActivityAt: now - 1_000,
+          updatedAt: now - 1_000,
+        },
+      ],
+      participants: [
+        {
+          _id: "participant-host-1",
+          roomId: "room-1",
+          kind: "host",
+          hostUserId: "user-7",
+          displayName: "Dealer",
+          isActive: true,
+          lastSeenAt: 90_000,
+          createdAt: now - 10_000,
+        },
+      ],
+    });
+
+    const state = await getMutationHandler<
+      { slug: string },
+      {
+        participants: Array<{ id: string; kind: string }>;
+        viewer: {
+          participantId: string | null;
+          participantKind: string | null;
+          needsJoin: boolean;
+        };
+      }
+    >(getBySlug)._handler(ctx, {
+      slug: "demo-room",
+    });
+
+    expect(state.viewer).toMatchObject({
+      participantId: "participant-host-1",
+      participantKind: "host",
+      needsJoin: false,
+    });
+    expect(state.participants).toEqual([
+      expect.objectContaining({
+        id: "participant-host-1",
+        kind: "host",
+      }),
+    ]);
+  });
+
   it("treats expired guest rooms as inaccessible", async () => {
     const now = 5_000_000;
     vi.spyOn(Date, "now").mockReturnValue(now);

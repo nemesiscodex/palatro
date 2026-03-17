@@ -979,6 +979,72 @@ describe("RoomPage", () => {
     expect(routeState.playSound).toHaveBeenCalledTimes(2);
   });
 
+  it("lets an expired guest rejoin from the ready check prompt", async () => {
+    const readyCheckStartedAt = Date.now();
+
+    routeState.queryValue = {
+      room: {
+        id: "room-1",
+        name: "Sprint Poker",
+        slug: "demo-room",
+        scaleType: "fibonacci",
+        consensusMode: "plurality",
+        consensusThreshold: 70,
+        hostVotingEnabled: true,
+        status: "idle",
+        hasPassword: false,
+      },
+      readyCheck: {
+        startedAt: readyCheckStartedAt,
+        expiresAt: readyCheckStartedAt + 15_000,
+        isActive: true,
+        viewerStatus: null,
+        viewerCanRespond: false,
+        viewerCanRejoin: true,
+        viewerRejoinParticipantId: "guest-1",
+      },
+      deck: ["1", "2", "3"],
+      participants: [
+        {
+          id: "host-1",
+          displayName: "Dealer",
+          hasVoted: false,
+          revealedVote: null,
+          kind: "host",
+          readyCheckStatus: "yes",
+        },
+      ],
+      activeRound: null,
+      viewer: {
+        isOwner: false,
+        participantId: null,
+        participantKind: null,
+        canVote: false,
+        needsJoin: true,
+        currentVote: null,
+        displayName: "Alex",
+        isAuthenticated: false,
+      },
+    };
+    routeState.mutations.respondReadyCheck.mockResolvedValue(null);
+
+    render(<RoomPage slug="demo-room" />);
+
+    expect(screen.getByText("You were removed for inactivity. Press Yes to rejoin this ready check.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Yes, rejoin" }));
+
+    await waitFor(() => {
+      expect(routeState.mutations.respondReadyCheck).toHaveBeenCalledWith({
+        roomId: "room-1",
+        participantId: "guest-1",
+        answer: "yes",
+        guestToken: undefined,
+      });
+    });
+  });
+
   it("plays the timeout sound when the participant answers no", async () => {
     const readyCheckStartedAt = Date.now();
 
